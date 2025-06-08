@@ -49,12 +49,21 @@ export async function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   
-  // CSP básico
+  // CSP atualizado para Firebase
   if (!pathname.startsWith('/api/')) {
-    response.headers.set(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://firestore.googleapis.com; frame-src 'self' https://accounts.google.com;"
-    );
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.google.com https://www.gstatic.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: https: blob:",
+      "connect-src 'self' https://*.googleapis.com https://*.google.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebase.googleapis.com https://www.googleapis.com https://oauth2.googleapis.com",
+      "frame-src 'self' https://accounts.google.com https://*.google.com",
+      "object-src 'none'",
+      "base-uri 'self'"
+    ].join('; ');
+    
+    response.headers.set('Content-Security-Policy', csp);
   }
 
   // Rotas protegidas que precisam de autenticação

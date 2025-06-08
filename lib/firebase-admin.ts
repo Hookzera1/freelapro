@@ -6,10 +6,6 @@ import { getAuth } from 'firebase-admin/auth';
 const formatPrivateKey = (key: string | undefined): string => {
   if (!key) throw new Error('FIREBASE_PRIVATE_KEY não está definida');
   
-  console.log('Debug: Formatando chave privada...');
-  console.log('Debug: Tamanho da chave:', key.length);
-  console.log('Debug: Primeiros 50 caracteres:', key.substring(0, 50));
-  
   // Remove aspas duplas se existirem no início e fim
   let formattedKey = key.trim();
   if (formattedKey.startsWith('"') && formattedKey.endsWith('"')) {
@@ -18,30 +14,17 @@ const formatPrivateKey = (key: string | undefined): string => {
   
   // Se a chave já contém quebras de linha reais, mantém
   if (formattedKey.includes('\n')) {
-    console.log('Debug: Chave já tem quebras de linha reais');
     return formattedKey;
   }
   
   // Substitui \\n por quebras de linha reais
   formattedKey = formattedKey.replace(/\\n/g, '\n');
   
-  console.log('Debug: Chave formatada. Primeiras 3 linhas:', formattedKey.split('\n').slice(0, 3).join('\n'));
-  
   return formattedKey;
 };
 
 // Função para validar e obter as credenciais
 const getServiceAccount = () => {
-  // Debug: Log das variáveis de ambiente
-  console.log('Firebase Admin Debug - Variáveis disponíveis:', {
-    FIREBASE_PROJECT_ID: !!process.env.FIREBASE_PROJECT_ID,
-    FIREBASE_PRIVATE_KEY_ID: !!process.env.FIREBASE_PRIVATE_KEY_ID,
-    FIREBASE_PRIVATE_KEY: !!process.env.FIREBASE_PRIVATE_KEY,
-    FIREBASE_CLIENT_EMAIL: !!process.env.FIREBASE_CLIENT_EMAIL,
-    FIREBASE_CLIENT_ID: !!process.env.FIREBASE_CLIENT_ID,
-    FIREBASE_CLIENT_CERT_URL: !!process.env.FIREBASE_CLIENT_CERT_URL
-  });
-
   const requiredEnvVars = {
     projectId: process.env.FIREBASE_PROJECT_ID,
     privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
