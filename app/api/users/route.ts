@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { auth, db } from '@/lib/firebase-admin';
 import { NextRequest } from 'next/server';
 import { DocumentData } from 'firebase-admin/firestore';
-import { prisma } from '@/lib/prisma';
 import { getAuth } from 'firebase-admin/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('API /users POST: Iniciando criação de usuário');
+    
     // Verificar token de autenticação
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     const { uid, name, email, userType, companyName } = data;
 
+    console.log('API: Dados recebidos:', { uid, name, email, userType, companyName });
+
     // Validar dados obrigatórios
     if (!uid || !name || !email || !userType) {
       console.log('API: Dados obrigatórios ausentes:', { uid, name, email, userType });
@@ -56,36 +59,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar se o usuário já existe no Prisma
-    const existingUser = await prisma.user.findUnique({
-      where: { id: uid }
-    });
+    // Verificar se o usuário já existe no Firestore
+    console.log('API: Verificando se usuário já existe no Firestore');
+    const userRef = db.collection('users').doc(uid);
+    const existingDoc = await userRef.get();
 
-    if (existingUser) {
-      console.log('API: Usuário já existe no Prisma:', uid);
+    if (existingDoc.exists) {
+      console.log('API: Usuário já existe no Firestore:', uid);
       return NextResponse.json(
         { error: 'Usuário já existe' },
         { status: 409 }
       );
     }
-
-    // Criar usuário no Prisma
-    console.log('API: Criando usuário no Prisma:', {
-      uid,
-      name,
-      email,
-      userType
-    });
-
-    const prismaUser = await prisma.user.create({
-      data: {
-        id: uid,
-        name,
-        email,
-        userType: userType as 'company' | 'freelancer',
-        companyName: userType === 'company' ? companyName : null
-      }
-    });
 
     // Criar usuário no Firestore
     const userData = {
@@ -102,15 +87,20 @@ export async function POST(request: NextRequest) {
       ...userData
     });
 
-    const userRef = db.collection('users').doc(uid);
     await userRef.set(userData);
 
     // Atualizar claims do usuário no Firebase Auth
-    await getAuth().setCustomUserClaims(uid, {
-      userType: userType
-    });
+    try {
+      await getAuth().setCustomUserClaims(uid, {
+        userType: userType
+      });
+      console.log('API: Claims do usuário definidos com sucesso');
+    } catch (error) {
+      console.error('API: Erro ao definir claims:', error);
+      // Não falhar por causa disso
+    }
 
-    console.log('API: Usuário criado com sucesso em todos os sistemas');
+    console.log('API: Usuário criado com sucesso no Firestore');
     return NextResponse.json({
       success: true,
       uid,
@@ -118,6 +108,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('API: Erro ao criar usuário:', error);
+    
+    // Log detalhado do erro
+    if (error instanceof Error) {
+      console.error('API: Detalhes do erro:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+    }
+    
     const errorMessage = error instanceof Error ? error.message : 'Erro ao criar usuário';
     return NextResponse.json(
       { error: errorMessage },
@@ -128,6 +128,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('API /users GET: Iniciando busca de usuários');
+    
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -153,6 +155,7 @@ export async function GET(request: NextRequest) {
       ...doc.data()
     }));
 
+    console.log('API: Usuários encontrados:', users.length);
     return NextResponse.json(users);
   } catch (error: any) {
     console.error('Erro ao buscar usuários:', error);
@@ -201,8 +204,8 @@ export async function PATCH(request: NextRequest) {
       website: website || userData.website,
       github: github || userData.github,
       linkedin: linkedin || userData.linkedin,
-      updatedAt: new Date().toISOString(),
-    }, { merge: true });
+      updatedAt: new Date().toISOString()
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
