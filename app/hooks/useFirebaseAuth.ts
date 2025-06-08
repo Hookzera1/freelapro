@@ -20,6 +20,11 @@ export function useFirebaseAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Buscar dados adicionais do usuário do nosso banco
@@ -48,6 +53,9 @@ export function useFirebaseAuth() {
   const signIn = async (email: string, password: string) => {
     try {
       setError(null);
+      if (!auth) {
+        throw new Error('Firebase Auth não está disponível');
+      }
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return userCredential.user as User;
     } catch (err: any) {
@@ -59,6 +67,9 @@ export function useFirebaseAuth() {
   const signUp = async (email: string, password: string, userData?: { userType: string; name: string }) => {
     try {
       setError(null);
+      if (!auth) {
+        throw new Error('Firebase Auth não está disponível');
+      }
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -91,6 +102,9 @@ export function useFirebaseAuth() {
   const signInWithGoogle = async () => {
     try {
       setError(null);
+      if (!auth) {
+        throw new Error('Firebase Auth não está disponível');
+      }
       const result = await signInWithPopup(auth, googleProvider);
       
       // Criar ou atualizar usuário no banco de dados
@@ -117,6 +131,9 @@ export function useFirebaseAuth() {
 
   const signOut = async () => {
     try {
+      if (!auth) {
+        throw new Error('Firebase Auth não está disponível');
+      }
       await firebaseSignOut(auth);
       return true;
     } catch (err: any) {

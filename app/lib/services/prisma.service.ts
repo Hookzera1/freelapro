@@ -11,7 +11,6 @@ export const getUserById = cache(async (userId: string) => {
       image: true,
       userType: true,
       companyName: true,
-      emailVerified: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -75,7 +74,7 @@ export const getProjectsByFreelancer = cache(async (freelancerId: string, limit 
         select: {
           id: true,
           status: true,
-          value: true,
+          budget: true,
         },
       },
     },

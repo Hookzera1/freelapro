@@ -18,6 +18,10 @@ export default function EsqueciSenha() {
     setLoading(true);
 
     try {
+      if (!auth) {
+        throw new Error('Firebase Auth não está disponível');
+      }
+      
       await sendPasswordResetEmail(auth, email);
       toast.success('Email de recuperação enviado! Verifique sua caixa de entrada.');
       router.push('/login');

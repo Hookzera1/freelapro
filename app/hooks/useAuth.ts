@@ -6,6 +6,8 @@ import { useFirebaseAuth } from './useFirebaseAuth';
 
 interface AuthUser extends FirebaseUser {
   userType?: string;
+  image?: string | null;
+  name?: string | null;
 }
 
 interface UpdateProfileData {
@@ -57,6 +59,11 @@ export function useAuth() {
   return {
     user,
     loading,
-    updateProfile
+    updateProfile,
+    signIn: firebaseAuth.signIn,
+    signUp: firebaseAuth.signUp,
+    signInWithGoogle: firebaseAuth.signInWithGoogle,
+    signOut: firebaseAuth.signOut,
+    error: firebaseAuth.error
   };
 } 

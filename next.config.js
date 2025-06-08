@@ -3,7 +3,7 @@ const nextConfig = {
   experimental: {
     optimizeCss: false,
   },
-  // TEMPORÁRIO: Desabilitar verificação de tipos para focar em problemas críticos
+  // TEMPORÁRIO: Desabilitar verificação de tipos para deploy urgente
   typescript: {
     ignoreBuildErrors: true,
   },
