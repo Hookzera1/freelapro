@@ -5,10 +5,29 @@ import { getAuth } from 'firebase-admin/auth';
 // Função para formatar a private key corretamente
 const formatPrivateKey = (key: string | undefined): string => {
   if (!key) throw new Error('FIREBASE_PRIVATE_KEY não está definida');
-  // Se a chave já contém \n literais, não precisa substituir
-  if (key.includes('\n')) return key;
-  // Caso contrário, substitui \\n por \n
-  return key.replace(/\\n/g, '\n');
+  
+  console.log('Debug: Formatando chave privada...');
+  console.log('Debug: Tamanho da chave:', key.length);
+  console.log('Debug: Primeiros 50 caracteres:', key.substring(0, 50));
+  
+  // Remove aspas duplas se existirem no início e fim
+  let formattedKey = key.trim();
+  if (formattedKey.startsWith('"') && formattedKey.endsWith('"')) {
+    formattedKey = formattedKey.slice(1, -1);
+  }
+  
+  // Se a chave já contém quebras de linha reais, mantém
+  if (formattedKey.includes('\n')) {
+    console.log('Debug: Chave já tem quebras de linha reais');
+    return formattedKey;
+  }
+  
+  // Substitui \\n por quebras de linha reais
+  formattedKey = formattedKey.replace(/\\n/g, '\n');
+  
+  console.log('Debug: Chave formatada. Primeiras 3 linhas:', formattedKey.split('\n').slice(0, 3).join('\n'));
+  
+  return formattedKey;
 };
 
 // Função para validar e obter as credenciais
