@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Círculo de fundo -->
+  <circle cx="96" cy="96" r="88" fill="#3B82F6" />
+  
+  <!-- Letras FC em branco -->
+  <path d="M60 64V128H76V104H100V92H76V76H104V64H60Z" fill="white"/>
+  <path d="M108 64V76H132V92H108V128H124V104H132C136.4 104 140 100.4 140 96V72C140 67.6 136.4 64 132 64H108Z" fill="white"/>
+  
+  <!-- Elemento decorativo -->
+  <circle cx="96" cy="96" r="84" stroke="white" stroke-width="2" stroke-opacity="0.2"/>
+</svg> 

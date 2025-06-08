@@ -1,0 +1,3 @@
+const response = await fetch(`/api/jobs/${uid}`, {
+  // ... existing code ...
+}); 

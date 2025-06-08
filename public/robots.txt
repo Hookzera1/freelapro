@@ -1,0 +1,28 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Allow: /projetos
+Allow: /talentos
+Allow: /como-funciona
+Allow: /beneficios
+
+# Proteger rotas privadas
+Disallow: /dashboard
+Disallow: /perfil
+Disallow: /configuracoes
+Disallow: /mensagens
+Disallow: /api/
+
+# Permitir Googlebot em todas as páginas públicas
+User-agent: Googlebot
+Allow: /
+Allow: /projetos
+Allow: /talentos
+Allow: /como-funciona
+Allow: /beneficios
+
+# Sitemap
+Sitemap: https://freelancepro.com.br/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 10 

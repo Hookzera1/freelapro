@@ -1,0 +1,1 @@
+<Link href={`/vagas/${uid}`} className="block"> 
