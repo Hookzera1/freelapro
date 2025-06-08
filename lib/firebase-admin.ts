@@ -13,6 +13,16 @@ const formatPrivateKey = (key: string | undefined): string => {
 
 // Função para validar e obter as credenciais
 const getServiceAccount = () => {
+  // Debug: Log das variáveis de ambiente
+  console.log('Firebase Admin Debug - Variáveis disponíveis:', {
+    FIREBASE_PROJECT_ID: !!process.env.FIREBASE_PROJECT_ID,
+    FIREBASE_PRIVATE_KEY_ID: !!process.env.FIREBASE_PRIVATE_KEY_ID,
+    FIREBASE_PRIVATE_KEY: !!process.env.FIREBASE_PRIVATE_KEY,
+    FIREBASE_CLIENT_EMAIL: !!process.env.FIREBASE_CLIENT_EMAIL,
+    FIREBASE_CLIENT_ID: !!process.env.FIREBASE_CLIENT_ID,
+    FIREBASE_CLIENT_CERT_URL: !!process.env.FIREBASE_CLIENT_CERT_URL
+  });
+
   const requiredEnvVars = {
     projectId: process.env.FIREBASE_PROJECT_ID,
     privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
