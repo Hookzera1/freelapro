@@ -18,6 +18,20 @@ model User {
   userType  String   @default("freelancer")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relacionamentos adicionados
+  companyProjects      Project[]     @relation("CompanyProjects")
+  freelancerProjects   Project[]     @relation("FreelancerProjects")
+  proposals            Proposal[]    @relation("UserProposals")
+  notifications        Notification[]
+  freelancerContracts  Contract[]    @relation("FreelancerContracts")
+  companyContracts     Contract[]    @relation("CompanyContracts")
+  milestoneLogs        MilestoneLog[]
+  messages             Message[]
+  reviewsGiven         Review[]      @relation("ReviewsGiven")
+  reviewsReceived      Review[]      @relation("ReviewsReceived")
+  portfolio            Portfolio[]
+  userSkills           UserSkill[]
 }
 
 model Project {

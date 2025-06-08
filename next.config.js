@@ -33,7 +33,10 @@ const nextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
-  output: 'standalone',
+  // Configurações para build no Vercel
+  env: {
+    CUSTOM_KEY: 'vercel-build',
+  },
   async headers() {
     return [
       {
