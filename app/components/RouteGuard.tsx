@@ -1,143 +1,98 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { AccessDenied } from './AccessDenied';
 
 interface RouteGuardProps {
   children: React.ReactNode;
-  allowedUserTypes?: ('freelancer' | 'company')[];
   requireAuth?: boolean;
-  requireVerified?: boolean;
-  redirectTo?: string;
-  customDeniedMessage?: React.ReactNode;
-  customDeniedSuggestion?: React.ReactNode;
+  allowedUserTypes?: ('freelancer' | 'company')[];
 }
 
-export function RouteGuard({
-  children,
-  allowedUserTypes,
-  requireAuth = true,
-  requireVerified = true,
-  redirectTo = '/',
-  customDeniedMessage,
-  customDeniedSuggestion
+export default function RouteGuard({ 
+  children, 
+  requireAuth = true, 
+  allowedUserTypes 
 }: RouteGuardProps) {
+  const { user, loading } = useAuth();
   const router = useRouter();
-  const { user, loading, isAuthenticated } = useAuth();
-  const [shouldRender, setShouldRender] = useState(false);
-  const [showAccessDenied, setShowAccessDenied] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    const checkAuth = () => {
-      console.log('RouteGuard - Estado detalhado:', {
-        loading,
-        userPresent: !!user,
-        userType: user?.userType,
-        userEmail: user?.email,
-        isAuthenticated,
-        requireAuth,
-        requireVerified,
-        allowedUserTypes,
-        currentPath: window.location.pathname
-      });
+    if (loading) return;
 
-      // Se ainda está carregando, não faz nada
-      if (loading) {
-        console.log('RouteGuard - Ainda carregando, aguardando...');
-        setShouldRender(false);
-        setShowAccessDenied(false);
-        return;
-      }
+    if (requireAuth && !user) {
+      console.log('RouteGuard: Usuário não autenticado, redirecionando para login');
+      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+      return;
+    }
 
-      // Se não requer autenticação, renderiza normalmente
-      if (!requireAuth) {
-        console.log('RouteGuard - Autenticação não requerida, liberando acesso');
-        setShouldRender(true);
-        setShowAccessDenied(false);
-        return;
-      }
+    if (user && allowedUserTypes && !allowedUserTypes.includes(user.userType || 'freelancer')) {
+      console.log('RouteGuard: Tipo de usuário não permitido');
+      router.replace('/');
+      return;
+    }
+  }, [user, loading, router, requireAuth, allowedUserTypes, pathname]);
 
-      // Se requer autenticação mas não há usuário autenticado
-      if (!isAuthenticated || !user) {
-        console.log('RouteGuard - PROBLEMA: Usuário não autenticado', {
-          isAuthenticated,
-          userExists: !!user,
-          token: !!localStorage.getItem('authToken')
-        });
-        const currentPath = window.location.pathname;
-        router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
-        return;
-      }
-
-      // Se requer verificação de email
-      if (requireVerified && !user.emailVerified) {
-        console.log('RouteGuard - Email não verificado', {
-          emailVerified: user.emailVerified
-        });
-        setShouldRender(false);
-        setShowAccessDenied(true);
-        return;
-      }
-
-      // Se há tipos de usuário permitidos
-      if (allowedUserTypes && allowedUserTypes.length > 0) {
-        console.log('RouteGuard - Verificando tipo de usuário:', {
-          userType: user.userType,
-          allowedTypes: allowedUserTypes,
-          isAllowed: allowedUserTypes.includes(user.userType as 'freelancer' | 'company')
-        });
-
-        if (!allowedUserTypes.includes(user.userType as 'freelancer' | 'company')) {
-          console.log('RouteGuard - PROBLEMA: Tipo de usuário não permitido');
-          setShouldRender(false);
-          setShowAccessDenied(true);
-          return;
-        }
-      }
-
-      console.log('RouteGuard - ✅ Todas as verificações passaram, liberando acesso');
-      setShouldRender(true);
-      setShowAccessDenied(false);
-    };
-
-    checkAuth();
-  }, [user, loading, isAuthenticated, requireAuth, requireVerified, allowedUserTypes, router]);
-
-  // Se ainda está carregando, mostra loading
   if (loading) {
     console.log('RouteGuard - Mostrando loading...');
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
-  // Se deve mostrar acesso negado
-  if (showAccessDenied) {
-    console.log('RouteGuard - Mostrando acesso negado');
-    return (
-      <AccessDenied
-        message={customDeniedMessage || "Você não tem permissão para acessar esta página"}
-        suggestion={customDeniedSuggestion || "Por favor, faça login com uma conta que tenha as permissões necessárias"}
-        redirectTo={redirectTo}
-      />
-    );
+  if (requireAuth && !user) {
+    return null;
   }
 
-  // Se não deve renderizar (aguardando verificações)
-  if (!shouldRender) {
-    console.log('RouteGuard - Aguardando verificações...');
+  if (user && allowedUserTypes && !allowedUserTypes.includes(user.userType || 'freelancer')) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-800 mb-4">Acesso Negado</h1>
+          <p className="text-slate-600 mb-6">
+            Você não tem permissão para acessar esta página.
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Voltar ao Início
+          </button>
+        </div>
       </div>
     );
   }
 
-  // Se passou por todas as verificações, renderiza o conteúdo
-  console.log('RouteGuard - ✅ Renderizando conteúdo');
+  // Verificar se é uma rota que precisa de tipo de usuário específico
+  const protectedRoutes = {
+    '/empresa': ['company'],
+    '/dashboard': ['freelancer']
+  };
+
+  for (const [route, allowedTypes] of Object.entries(protectedRoutes)) {
+    if (pathname.startsWith(route) && user && !allowedTypes.includes(user.userType || 'freelancer')) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-slate-800 mb-4">Acesso Negado</h1>
+            <p className="text-slate-600 mb-6">
+              Esta página é exclusiva para {allowedTypes.includes('company') ? 'empresas' : 'freelancers'}.
+            </p>
+            <button
+              onClick={() => router.push('/')}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Voltar ao Início
+            </button>
+          </div>
+        </div>
+      );
+    }
+  }
+
   return <>{children}</>;
 } 

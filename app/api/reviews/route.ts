@@ -220,13 +220,14 @@ export async function POST(request: NextRequest) {
       _count: { rating: true }
     });
 
-    await prisma.user.update({
-      where: { id: revieweeId },
-      data: {
-        rating: userStats._avg.rating || 0,
-        reviewCount: userStats._count.rating || 0
-      }
-    });
+    // TODO: Adicionar campos rating e reviewCount ao modelo User
+    // await prisma.user.update({
+    //   where: { id: revieweeId },
+    //   data: {
+    //     rating: userStats._avg.rating || 0,
+    //     reviewCount: userStats._count.rating || 0
+    //   }
+    // });
 
     // Criar notificação
     const reviewerName = review.reviewer.companyName || review.reviewer.name || 'Usuário';

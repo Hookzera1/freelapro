@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { useFetchAuth } from '@/hooks/useFetchAuth';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
-import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 interface ProjectForm {
   title: string;
@@ -20,13 +20,15 @@ interface ProjectForm {
   duration: string;
   experience: string;
   skills: string[];
-  location: string;
+  projectLocation: string; // Renamed from 'location' to avoid conflicts
 }
 
 export default function CreateProject() {
   const router = useRouter();
   const { user } = useAuth();
+  const { fetchAuth } = useFetchAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [form, setForm] = useState<ProjectForm>({
     title: '',
     description: '',
@@ -37,8 +39,17 @@ export default function CreateProject() {
     duration: 'not-specified',
     experience: 'any',
     skills: [],
-    location: ''
+    projectLocation: ''
   });
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Não renderizar no server-side
+  if (!isMounted) {
+    return null;
+  }
 
   if (!user || user.userType !== 'company') {
     router.push('/login');
@@ -50,7 +61,7 @@ export default function CreateProject() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetchWithAuth('/api/jobs', {
+      const response = await fetchAuth('/api/jobs', {
         method: 'POST',
         body: JSON.stringify(form)
       });
@@ -237,13 +248,13 @@ export default function CreateProject() {
           </div>
 
           <div>
-            <label htmlFor="location" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="projectLocation" className="block text-sm font-medium text-slate-700 mb-1">
               Localização (opcional)
             </label>
             <Input
-              id="location"
-              name="location"
-              value={form.location}
+              id="projectLocation"
+              name="projectLocation"
+              value={form.projectLocation}
               onChange={handleChange}
               placeholder="Ex: Remoto, São Paulo - SP"
             />

@@ -30,8 +30,7 @@ export const authOptions: AuthOptions = {
               email: true,
               name: true,
               userType: true,
-              image: true,
-              emailVerified: true
+              image: true
             }
           });
 
@@ -48,11 +47,10 @@ export const authOptions: AuthOptions = {
 
           return {
             id: userRecord.uid,
-            email: userRecord.email,
-            name: userRecord.displayName || dbUser.name,
-            image: userRecord.photoURL || dbUser.image,
-            userType: dbUser.userType,
-            emailVerified: dbUser.emailVerified
+            email: userRecord.email || '',
+            name: userRecord.displayName || dbUser.name || '',
+            image: userRecord.photoURL || dbUser.image || '',
+            userType: dbUser.userType as 'freelancer' | 'company'
           };
         } catch (error) {
           console.error('Auth: Erro ao autenticar:', error);
@@ -107,8 +105,7 @@ export const authOptions: AuthOptions = {
                 id: user.id,
                 email: user.email!,
                 name: user.name,
-                image: user.image,
-                emailVerified: new Date()
+                image: user.image
               }
             });
           }
@@ -122,7 +119,7 @@ export const authOptions: AuthOptions = {
     async session({ session, token }) {
       if (token) {
         session.user.id = token.sub!;
-        session.user.userType = token.userType as string;
+        session.user.userType = token.userType as 'freelancer' | 'company';
       }
       return session;
     },

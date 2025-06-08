@@ -1,56 +1,37 @@
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import { useCallback } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { auth } from '@/lib/firebase';
 
 export function useFetchAuth() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const pathname = usePathname();
+  const { user, isAuthenticated, getAuthToken } = useAuth();
 
-  const fetchAuth = async (url: string, options: RequestInit = {}) => {
+  const fetchAuth = useCallback(async (url: string, options: RequestInit = {}) => {
     try {
       if (!isAuthenticated || !user) {
-        console.log('useFetchAuth: Usuário não autenticado');
-        const currentPath = window.location.pathname;
-        router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        console.log('🔐 useFetchAuth: Usuário não autenticado');
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
         throw new Error('Usuário não autenticado');
       }
 
-      // Obter token do localStorage
-      const token = localStorage.getItem('authToken');
+      // Obter token atualizado do contexto
+      console.log('🔐 useFetchAuth: Obtendo token do contexto...');
+      const token = await getAuthToken();
       if (!token) {
-        console.log('useFetchAuth: Token não encontrado');
-        const currentPath = window.location.pathname;
-        router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
-        throw new Error('Token não encontrado');
+        console.log('🔐 useFetchAuth: Token não disponível');
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+        throw new Error('Token não disponível');
       }
 
-      // Verificar se o token está próximo de expirar
-      if (isTokenExpired(token)) {
-        console.log('useFetchAuth: Token próximo de expirar, obtendo novo token');
-        // Obter um novo token do usuário atual do Firebase
-        if (!auth) {
-          console.log('useFetchAuth: Firebase Auth não está disponível');
-          const currentPath = window.location.pathname;
-          router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
-          throw new Error('Firebase Auth não está disponível');
-        }
-        
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          const newToken = await currentUser.getIdToken(true);
-          localStorage.setItem('authToken', newToken);
-        } else {
-          console.log('useFetchAuth: Usuário Firebase não encontrado');
-          const currentPath = window.location.pathname;
-          router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
-          throw new Error('Usuário Firebase não encontrado');
-        }
-      }
-
-      // Mesclar headers
+      // Configurar headers
       const headers = new Headers(options.headers);
       headers.set('Authorization', `Bearer ${token}`);
+      if (!headers.get('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
 
+      console.log('🔐 useFetchAuth: Fazendo requisição para:', url);
       const response = await fetch(url, {
         ...options,
         headers,
@@ -58,66 +39,46 @@ export function useFetchAuth() {
       });
 
       if (response.status === 401) {
-        // Tentar obter um novo token do Firebase
-        if (!auth) {
-          console.log('useFetchAuth: Firebase Auth não está disponível para retry');
-          const currentPath = window.location.pathname;
-          router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
-          throw new Error('Firebase Auth não está disponível');
-        }
+        console.log('🔐 useFetchAuth: Token expirado, tentando renovar...');
         
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          const newToken = await currentUser.getIdToken(true);
-          localStorage.setItem('authToken', newToken);
-          
-          // Tentar novamente com o novo token
-          headers.set('Authorization', `Bearer ${newToken}`);
-          const retryResponse = await fetch(url, {
-            ...options,
-            headers,
-            cache: 'no-store'
-          });
-
-          if (retryResponse.ok) {
-            return retryResponse;
-          }
+        // Tentar obter novo token
+        const newToken = await getAuthToken();
+        if (!newToken) {
+          console.log('🔐 useFetchAuth: Não foi possível renovar token');
+          router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+          throw new Error('Sessão expirada');
         }
 
-        console.log('useFetchAuth: Token expirado ou inválido');
-        const currentPath = window.location.pathname;
-        router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        // Tentar novamente com novo token
+        headers.set('Authorization', `Bearer ${newToken}`);
+        const retryResponse = await fetch(url, {
+          ...options,
+          headers,
+          cache: 'no-store'
+        });
+
+        if (retryResponse.ok) {
+          console.log('🔐 useFetchAuth: Requisição bem-sucedida após renovação do token');
+          return retryResponse;
+        }
+
+        console.log('🔐 useFetchAuth: Falha mesmo após renovar token');
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
         throw new Error('Sessão expirada');
       }
 
       if (!response.ok) {
-        console.error('useFetchAuth: Erro na requisição', response.status);
+        console.error('🔐 useFetchAuth: Erro na requisição:', response.status, response.statusText);
         throw new Error(`Erro na requisição: ${response.status}`);
       }
 
+      console.log('🔐 useFetchAuth: Requisição bem-sucedida');
       return response;
     } catch (error) {      
-      console.error('Erro na requisição em useFetchAuth:', error);
+      console.error('🔐 useFetchAuth: Erro na requisição:', error);
       throw error;
     }
-  };
+  }, [user?.uid, isAuthenticated, getAuthToken, router, pathname]);
 
   return { fetchAuth };
-}
-
-// Função para verificar se o token está próximo de expirar
-function isTokenExpired(token: string): boolean {
-  try {
-    const [, payload] = token.split('.');
-    const decodedPayload = JSON.parse(atob(payload));
-    const expirationTime = decodedPayload.exp * 1000; // Converter para milissegundos
-    const currentTime = Date.now();
-    const timeToExpire = expirationTime - currentTime;
-    
-    // Retorna true se o token expira em menos de 5 minutos
-    return timeToExpire < 300000;
-  } catch (error) {
-    console.error('Erro ao verificar expiração do token:', error);
-    return true; // Em caso de erro, assume que o token está expirado
-  }
 }

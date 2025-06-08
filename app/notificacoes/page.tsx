@@ -5,7 +5,7 @@ import { Bell, Check, X } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useFetchAuth } from '@/hooks/useFetchAuth';
 
 interface Notification {
@@ -20,6 +20,7 @@ interface Notification {
 export default function NotificacoesPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const { fetchAuth } = useFetchAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,21 +34,19 @@ export default function NotificacoesPage() {
         // Se não há usuário após carregar, redirecionar para login
         if (!user) {
           console.log('Usuário não autenticado, redirecionando para login...');
-          const currentPath = window.location.pathname;
-          router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+          router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
           return;
         }
 
         await fetchNotifications();
       } catch (error) {
         console.error('Erro ao verificar autenticação:', error);
-        const currentPath = window.location.pathname;
-        router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
       }
     };
 
     checkAuth();
-  }, [user, router, loading, fetchAuth]);
+  }, [user, router, loading, fetchAuth, pathname]);
 
   const fetchNotifications = async () => {
     try {

@@ -3,12 +3,9 @@ const nextConfig = {
   experimental: {
     optimizeCss: false,
   },
-  // Ignora erros de TypeScript e ESLint para build
+  // TEMPORÁRIO: Desabilitar verificação de tipos para focar em problemas críticos
   typescript: {
     ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   images: {
     remotePatterns: [

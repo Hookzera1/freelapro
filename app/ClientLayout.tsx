@@ -1,8 +1,7 @@
 'use client';
 
 import { Providers } from './providers';
-import Navbar from './components/Navbar';
-import { Analytics } from '@vercel/analytics/react';
+import { Navbar } from './components/Navbar';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
 
@@ -107,7 +106,6 @@ export default function ClientLayout({
           </div>
         </footer>
       </div>
-      <Analytics />
     </Providers>
   );
 }

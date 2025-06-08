@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 
 // Rate limiting simples em memória (para produção usar Redis)
 const rateLimit = new Map<string, { count: number; resetTime: number }>();
@@ -87,13 +86,46 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
 
-  if (isProtectedRoute) {
-    const token = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET 
-    });
+  // TEMPORARIAMENTE DESABILITADO: Deixar as páginas fazerem verificação client-side
+  // O middleware server-side não consegue acessar localStorage do Firebase
+  if (false && isProtectedRoute) {
+    // Verificar token Firebase nos cookies ou header Authorization
+    let authToken = request.cookies.get('authToken')?.value;
+    
+    // Se não tem nos cookies, verificar no header Authorization
+    if (!authToken) {
+      const authHeader = request.headers.get('Authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        authToken = authHeader.split('Bearer ')[1];
+      }
+    }
+    
+    if (!authToken) {
+      console.log('Middleware: Token Firebase não encontrado nos cookies nem header');
+      // Redirecionar para login com callback URL
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
 
-    if (!token) {
+    // Verificar se o token é válido (básico)
+    try {
+      // Decodificar JWT para verificar se não expirou
+      const [header, payload, signature] = authToken.split('.');
+      if (!header || !payload || !signature) {
+        throw new Error('Token inválido');
+      }
+      
+      const decodedPayload = JSON.parse(atob(payload));
+      const now = Math.floor(Date.now() / 1000);
+      
+      if (decodedPayload.exp && decodedPayload.exp < now) {
+        throw new Error('Token expirado');
+      }
+      
+      console.log('Middleware: Token Firebase válido para:', decodedPayload.email);
+    } catch (error) {
+      console.log('Middleware: Token Firebase inválido:', error);
       // Redirecionar para login com callback URL
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('callbackUrl', pathname);

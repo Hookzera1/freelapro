@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useToast } from '@/components/ui/Toast';
-import { RouteGuard } from '@/app/components/RouteGuard';
+import RouteGuard from '@/app/components/RouteGuard';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
@@ -100,12 +100,7 @@ export default function MinhasVagas() {
   };
 
   return (
-    <RouteGuard
-      allowedUserTypes={['company']}
-      requireAuth={true}
-      redirectTo="/login"
-      customDeniedMessage="Esta página é exclusiva para empresas"
-    >
+    <RouteGuard allowedUserTypes={['company']}>
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-slate-800 flex items-center">

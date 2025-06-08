@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/app/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/app/contexts/AuthContext';
 import { useFetchAuth } from '@/hooks/useFetchAuth';
 
 interface Proposal {
@@ -28,25 +28,34 @@ interface Proposal {
 export default function MyProposals() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { fetchAuth } = useFetchAuth();
 
   useEffect(() => {
-    const fetchProposals = async () => {
+    const checkAuth = async () => {
       try {
-        // Se ainda está carregando o estado de autenticação, aguardar
         if (loading) return;
 
-        // Se não há usuário após carregar, redirecionar para login
         if (!user) {
-          console.log('Usuário não autenticado, redirecionando para login');
-          const currentPath = window.location.pathname;
-          router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+          console.log('Usuário não autenticado, redirecionando para login...');
+          router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
           return;
         }
 
+        await fetchProposals();
+      } catch (error) {
+        console.error('Erro ao verificar autenticação:', error);
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+      }
+    };
+
+    const fetchProposals = async () => {
+      try {
+        if (!user) return;
+        
         console.log('Buscando propostas para o usuário:', user.uid);
         const response = await fetchAuth('/api/proposals/my-proposals');
         
@@ -65,8 +74,8 @@ export default function MyProposals() {
       }
     };
 
-    fetchProposals();
-  }, [user, loading, router, fetchAuth]);
+    checkAuth();
+  }, [user, router, loading, fetchAuth, pathname]);
 
   if (loading || isLoading) {
     return (

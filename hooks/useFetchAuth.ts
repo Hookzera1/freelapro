@@ -1,12 +1,14 @@
 import { useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 export function useFetchAuth() {
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
   const fetchAuth = useCallback(async (url: string, options: RequestInit = {}) => {
-    if (isLoading) {
+    if (loading) {
       throw new Error('Aguardando inicialização da autenticação');
     }
 
@@ -19,7 +21,7 @@ export function useFetchAuth() {
       
       if (response.status === 401) {
         // Redirecionar para login se necessário
-        window.location.href = '/login';
+        router.push('/login');
         throw new Error('Sessão expirada');
       }
 
@@ -28,7 +30,7 @@ export function useFetchAuth() {
       console.error('Erro na requisição:', error);
       throw error;
     }
-  }, [user, isLoading]);
+  }, [user, loading, router]);
 
-  return { fetchAuth, isLoading };
+  return { fetchAuth, loading };
 }

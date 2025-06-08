@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
-import { RouteGuard } from '@/app/components/RouteGuard';
+import RouteGuard from '@/app/components/RouteGuard';
 
 export default function PublicarVagaPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, loading } = useAuth();
   const [formData, setFormData] = useState({
     titulo: '',
     descricao: '',
@@ -25,13 +25,7 @@ export default function PublicarVagaPage() {
   };
 
   return (
-    <RouteGuard
-      allowedUserTypes={['company']}
-      requireVerified={true}
-      redirectTo="/empresa/dashboard"
-      customDeniedMessage="Apenas empresas podem publicar vagas"
-      customDeniedSuggestion="Se você é uma empresa e está vendo esta mensagem, verifique se sua conta está configurada corretamente."
-    >
+    <RouteGuard allowedUserTypes={['company']}>
       <div className="container-custom py-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-6">
           Publicar Nova Vaga

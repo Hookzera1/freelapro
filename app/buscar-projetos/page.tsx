@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useFetchAuth } from '@/hooks/useFetchAuth';
@@ -26,6 +26,7 @@ interface Job {
 export default function SearchProjects() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const { fetchAuth } = useFetchAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,27 +37,31 @@ export default function SearchProjects() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Se ainda está carregando o estado de autenticação, aguardar
         if (loading) return;
 
         // Se não há usuário após carregar, redirecionar para login
         if (!user) {
           console.log('Usuário não autenticado, redirecionando para login...');
-          const currentPath = window.location.pathname;
-          router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+          router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+          return;
+        }
+
+        // Verificar se é freelancer
+        if (user.userType !== 'freelancer') {
+          console.log('Usuário não é freelancer, redirecionando...');
+          router.replace('/');
           return;
         }
 
         await fetchJobs();
       } catch (error) {
         console.error('Erro ao verificar autenticação:', error);
-        const currentPath = window.location.pathname;
-        router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
       }
     };
 
     checkAuth();
-  }, [user, router, loading, fetchAuth]);
+  }, [user, router, loading, pathname, fetchAuth]);
 
   const fetchJobs = async () => {
     try {
@@ -74,8 +79,7 @@ export default function SearchProjects() {
       console.error('Erro ao carregar projetos:', err);
       setError('Erro ao carregar projetos. Tente novamente mais tarde.');
       if (err instanceof Error && err.message.includes('401')) {
-        const currentPath = window.location.pathname;
-        router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
       }
     } finally {
       setIsLoading(false);

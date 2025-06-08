@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { Briefcase, Users, PlusCircle, ChevronRight } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
+import { toast } from 'react-hot-toast';
 
 interface CompanyStats {
   totalProjects: number;
@@ -108,7 +109,7 @@ export default function CompanyDashboard() {
       }
 
       // Recarregar a página após migração bem-sucedida
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error('Erro na migração:', error);
     } finally {

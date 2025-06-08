@@ -2,7 +2,7 @@
 
 import { Shield, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 
 interface AccessDeniedProps {
@@ -19,20 +19,14 @@ export function AccessDenied({
   redirectLabel = 'Voltar para a página inicial'
 }: AccessDeniedProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useAuth();
 
   const handleRedirect = () => {
-    // Se o usuário está logado, redirecionar para a página apropriada
-    if (user) {
-      if (user.userType === 'company') {
-        router.push('/empresa/dashboard');
-      } else {
-        router.push('/dashboard');
-      }
+    if (redirectTo === '/login') {
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
     } else {
-      // Se não está logado, redirecionar para o login
-      const currentPath = window.location.pathname;
-      router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+      router.push(redirectTo);
     }
   };
 

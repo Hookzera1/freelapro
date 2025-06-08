@@ -37,21 +37,23 @@ export function Navbar() {
   const userRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    console.log('Estado do usuário na Navbar:', {
-      isAuthenticated: !!user,
-      userType: user?.userType,
-      email: user?.email
-    });
-
-    const token = localStorage.getItem('authToken');
-    const isAuthenticated = !!user && !!token;
-    setIsInitialized(true);
-
-    console.log('Estado de autenticação:', {
-      token: !!token,
+    console.log('🔍 Navbar: Estado inicial do usuário:', {
+      user: !!user,
+      loading,
       isAuthenticated,
-      userType: user?.userType
+      userType: user?.userType,
+      email: user?.email,
+      uid: user?.uid
     });
+
+    if (!loading) {
+      setIsInitialized(true);
+      console.log('✅ Navbar: Inicialização completa', {
+        hasUser: !!user,
+        userType: user?.userType,
+        isAuthenticated
+      });
+    }
 
     const handleScroll = () => {
       setScrolled(window.scrollY > 0);
@@ -76,7 +78,7 @@ export function Navbar() {
       window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [user, loading, isAuthenticated]);
 
   useEffect(() => {
     setIsMenuOpen(false);
@@ -89,11 +91,12 @@ export function Navbar() {
   const handleSignOut = async () => {
     try {
       setIsLoading(true);
+      console.log('🚪 Navbar: Iniciando logout...');
       await logout();
       localStorage.clear();
       router.push('/login');
     } catch (error) {
-      console.error('Erro ao fazer logout:', error);
+      console.error('❌ Navbar: Erro ao fazer logout:', error);
     } finally {
       setIsLoading(false);
       setIsProfileOpen(false);
@@ -102,12 +105,12 @@ export function Navbar() {
 
   const getNavigationLinks = (): NavigationLink[] => {
     if (loading || !isInitialized) {
-      console.log('Navbar: Loading ou não inicializado', { loading, isInitialized });
+      console.log('⏳ Navbar: Aguardando inicialização...', { loading, isInitialized });
       return [];
     }
 
-    if (!user) {
-      console.log('Navbar: Usuário não autenticado');
+    if (!user || !isAuthenticated) {
+      console.log('👤 Navbar: Usuário não autenticado, mostrando links públicos');
       return [
         { href: '/vagas', label: 'Vagas Disponíveis', icon: Search },
         { href: '/talentos', label: 'Encontrar Talentos', icon: Users },
@@ -116,25 +119,15 @@ export function Navbar() {
     }
 
     const userType = user.userType || 'freelancer';
-    console.log('Navbar: Tipo de usuário atual:', {
+    console.log('🎯 Navbar: Gerando links para tipo de usuário:', {
       userType,
       userEmail: user.email,
       userId: user.uid,
       rawUserType: user.userType
     });
 
-    if (userType !== 'freelancer' && userType !== 'company') {
-      console.warn('Navbar: Tipo de usuário inválido, usando freelancer como padrão');
-      return [
-        { href: '/dashboard', label: 'Dashboard', icon: Briefcase, requiresAuth: true },
-        { href: '/buscar-projetos', label: 'Buscar Projetos', icon: Search, requiresAuth: true },
-        { href: '/minhas-propostas', label: 'Minhas Propostas', icon: Briefcase, requiresAuth: true },
-        { href: '/portfolio', label: 'Portfólio', icon: User, requiresAuth: true }
-      ];
-    }
-
     if (userType === 'freelancer') {
-      console.log('Navbar: Retornando links de freelancer');
+      console.log('👨‍💻 Navbar: Retornando links de freelancer');
       return [
         { href: '/dashboard', label: 'Dashboard', icon: Briefcase, requiresAuth: true },
         { href: '/vagas', label: 'Vagas Disponíveis', icon: Search, requiresAuth: false },
@@ -145,7 +138,7 @@ export function Navbar() {
     }
 
     if (userType === 'company') {
-      console.log('Navbar: Retornando links de empresa');
+      console.log('🏢 Navbar: Retornando links de empresa');
       return [
         { href: '/empresa/dashboard', label: 'Dashboard', icon: Briefcase, requiresAuth: true },
         { href: '/empresa/publicar-projeto', label: 'Publicar Projeto', icon: PlusCircle, requiresAuth: true },
@@ -156,26 +149,26 @@ export function Navbar() {
       ];
     }
 
-    console.warn('Navbar: Caso não esperado, retornando links básicos');
+    console.warn('⚠️ Navbar: Tipo de usuário inválido, usando freelancer como padrão', { userType });
     return [
-      { href: '/dashboard', label: 'Dashboard', icon: Briefcase, requiresAuth: true }
+      { href: '/dashboard', label: 'Dashboard', icon: Briefcase, requiresAuth: true },
+      { href: '/vagas', label: 'Vagas Disponíveis', icon: Search, requiresAuth: false },
+      { href: '/minhas-propostas', label: 'Minhas Propostas', icon: Briefcase, requiresAuth: true },
+      { href: '/portfolio', label: 'Portfólio', icon: User, requiresAuth: true }
     ];
   };
 
   const handleNavigation = async (href: string, requiresAuth?: boolean) => {
-    console.log('Navegação iniciada:', {
+    console.log('🧭 Navbar: Navegação iniciada:', {
       href,
       requiresAuth,
       userType: user?.userType,
-      isAuthenticated: !!user,
-      token: !!localStorage.getItem('authToken')
+      isAuthenticated,
+      hasUser: !!user
     });
 
-    const token = localStorage.getItem('authToken');
-    const isAuthenticated = !!user && !!token;
-
-    if (requiresAuth && !isAuthenticated) {
-      console.log('Redirecionando para login - usuário não autenticado');
+    if (requiresAuth && (!user || !isAuthenticated)) {
+      console.log('🔐 Navbar: Redirecionando para login - usuário não autenticado');
       const searchParams = new URLSearchParams();
       searchParams.set('redirect', href);
       router.push(`/login?${searchParams.toString()}`);
@@ -183,74 +176,49 @@ export function Navbar() {
     }
 
     if (href.startsWith('/empresa/')) {
-      console.log('Verificando acesso à rota de empresa:', {
-        isAuthenticated,
-        userType: user?.userType,
-        href
-      });
+      console.log('🏢 Navbar: Verificando acesso à rota de empresa');
 
-      if (!isAuthenticated) {
-        console.log('Redirecionando para login - rota de empresa, usuário não autenticado');
+      if (!user || !isAuthenticated) {
+        console.log('🔐 Navbar: Redirecionando para login - rota de empresa sem auth');
         const searchParams = new URLSearchParams();
         searchParams.set('redirect', href);
         router.push(`/login?${searchParams.toString()}`);
         return;
       }
-      
-      try {
-        const response = await fetch('/api/auth/verify', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
 
-        if (!response.ok) {
-          console.log('Token inválido, redirecionando para login');
-          localStorage.removeItem('authToken');
-          const searchParams = new URLSearchParams();
-          searchParams.set('redirect', href);
-          router.push(`/login?${searchParams.toString()}`);
-          return;
-        }
-
-        if (user?.userType !== 'company') {
-          console.log('Acesso negado - usuário não é empresa');
-          router.push('/dashboard');
-          return;
-        }
-      } catch (error) {
-        console.error('Erro ao verificar token:', error);
+      if (user.userType !== 'company') {
+        console.log('❌ Navbar: Acesso negado - usuário não é empresa');
+        router.push('/dashboard');
+        return;
       }
     }
 
-    if (href.startsWith('/dashboard') || href.startsWith('/portfolio') || href.startsWith('/minhas-propostas')) {
-      if (!isAuthenticated) {
-        console.log('Redirecionando para login - rota de freelancer, usuário não autenticado');
+    if (href.startsWith('/dashboard') || href.startsWith('/portfolio') || href.startsWith('/minhas-propostas') || href.startsWith('/contratos')) {
+      console.log('👨‍💻 Navbar: Verificando acesso à rota de freelancer');
+
+      if (!user || !isAuthenticated) {
+        console.log('🔐 Navbar: Redirecionando para login - rota de freelancer sem auth');
         const searchParams = new URLSearchParams();
         searchParams.set('redirect', href);
         router.push(`/login?${searchParams.toString()}`);
         return;
       }
 
-      if (user?.userType !== 'freelancer') {
-        console.log('Acesso negado - usuário não é freelancer');
+      if (user.userType !== 'freelancer') {
+        console.log('❌ Navbar: Acesso negado - usuário não é freelancer');
         router.push('/empresa/dashboard');
         return;
       }
     }
 
-    console.log('Navegando para:', href);
+    console.log('✅ Navbar: Navegando para:', href);
     router.push(href);
     setUserDropdownOpen(false);
   };
 
   const navigationLinks = getNavigationLinks();
 
-  if (!isInitialized) {
-    return null;
-  }
-
-  if (loading) {
+  if (!isInitialized || loading) {
     return (
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-blue-100">
         <div className="container-custom">
@@ -300,7 +268,7 @@ export function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
-            {!user ? (
+            {!user || !isAuthenticated ? (
               <div className="flex items-center space-x-2">
                 <Link href="/login">
                   <button className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors duration-200">
@@ -387,8 +355,8 @@ export function Navbar() {
                     exit={{ opacity: 0, y: -10 }}
                     className="absolute top-full right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border max-h-96 overflow-hidden"
                   >
-                    <div className="flex items-center justify-between p-4 border-b">
-                      <h3 className="font-semibold text-slate-800">Notificações</h3>
+                    <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                      <h3 className="text-lg font-semibold text-gray-900">Notificações</h3>
                       {unreadCount > 0 && (
                         <button
                           onClick={markAllAsRead}
@@ -398,73 +366,47 @@ export function Navbar() {
                         </button>
                       )}
                     </div>
-                    
-                    <div className="max-h-80 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <div className="p-4 text-center text-slate-500">
-                          <Bell className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                          <p>Nenhuma notificação</p>
-                        </div>
-                      ) : (
-                        notifications.slice(0, 10).map((notification) => (
+
+                    {notifications.length === 0 ? (
+                      <div className="p-8 text-center text-gray-500">
+                        <Bell className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p>Nenhuma notificação</p>
+                      </div>
+                    ) : (
+                      <div className="max-h-80 overflow-y-auto">
+                        {notifications.map((notification) => (
                           <div
                             key={notification.id}
-                            className={`p-4 border-b hover:bg-slate-50 cursor-pointer transition-colors ${
-                              !notification.read ? 'bg-blue-50/50' : ''
+                            className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
+                              !notification.read ? 'bg-blue-50' : ''
                             }`}
-                            onClick={() => {
-                              if (!notification.read) {
-                                markAsRead(notification.id);
-                              }
-                              setNotificationDropdownOpen(false);
-                              if (notification.relatedType === 'contract' && notification.relatedId) {
-                                router.push('/contratos');
-                              }
-                            }}
+                            onClick={() => markAsRead(notification.id)}
                           >
-                            <div className="flex items-start gap-3">
-                              <div className="flex-shrink-0 mt-1">
-                                {notification.type === 'MESSAGE_RECEIVED' && <MessageCircle className="w-4 h-4 text-blue-500" />}
-                                {notification.type === 'MILESTONE_COMPLETED' && <CheckCircle className="w-4 h-4 text-green-500" />}
-                                {notification.type === 'PAYMENT_RECEIVED' && <DollarSign className="w-4 h-4 text-green-500" />}
-                                {!['MESSAGE_RECEIVED', 'MILESTONE_COMPLETED', 'PAYMENT_RECEIVED'].includes(notification.type) && <Bell className="w-4 h-4 text-slate-400" />}
+                            <div className="flex items-start space-x-3">
+                              <div className="flex-shrink-0">
+                                {notification.type === 'message' && <MessageCircle className="w-5 h-5 text-blue-500" />}
+                                {notification.type === 'proposal' && <Briefcase className="w-5 h-5 text-green-500" />}
+                                {notification.type === 'contract' && <FileText className="w-5 h-5 text-purple-500" />}
+                                {notification.type === 'payment' && <DollarSign className="w-5 h-5 text-green-500" />}
+                                {notification.type === 'milestone' && <CheckCircle className="w-5 h-5 text-blue-500" />}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-medium ${!notification.read ? 'text-slate-900' : 'text-slate-700'}`}>
+                                <p className="text-sm font-medium text-gray-900">
                                   {notification.title}
                                 </p>
-                                <p className={`text-xs mt-1 ${!notification.read ? 'text-slate-600' : 'text-slate-500'}`}>
+                                <p className="text-sm text-gray-500 mt-1">
                                   {notification.message}
                                 </p>
-                                <p className="text-xs text-slate-400 mt-1">
-                                  {new Date(notification.createdAt).toLocaleDateString('pt-BR', {
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
+                                <p className="text-xs text-gray-400 mt-2">
+                                  {new Date(notification.createdAt).toLocaleDateString('pt-BR')}
                                 </p>
                               </div>
                               {!notification.read && (
-                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
                               )}
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
-                    
-                    {notifications.length > 10 && (
-                      <div className="p-3 border-t text-center">
-                        <button
-                          onClick={() => {
-                            setNotificationDropdownOpen(false);
-                            router.push('/notificacoes');
-                          }}
-                          className="text-sm text-blue-600 hover:text-blue-700"
-                        >
-                          Ver todas as notificações
-                        </button>
+                        ))}
                       </div>
                     )}
                   </motion.div>
@@ -473,59 +415,107 @@ export function Navbar() {
             </div>
           </div>
 
-          <button
-            onClick={toggleMenu}
-            className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-purple-500/5 hover:text-blue-600 transition-colors duration-200"
-          >
-            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          <div className="md:hidden">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-slate-600 hover:text-blue-600 transition-colors"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
 
-        {isMenuOpen && (
-          <div className="md:hidden bg-white border-t border-slate-100 py-4 animate-in slide-in-from-top-2">
-            <div className="space-y-1 px-4">
-              {navigationLinks.map((link) => (
-                <button
-                  key={link.href}
-                  onClick={() => handleNavigation(link.href, link.requiresAuth)}
-                  className={`w-full px-4 py-2 rounded-lg flex items-center space-x-2 text-sm font-medium transition-all duration-200
-                    ${pathname === link.href
-                      ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-600'
-                      : 'text-slate-600 hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-purple-500/5 hover:text-blue-600'
-                    }`}
-                >
-                  {link.icon && <link.icon className="w-4 h-4" />}
-                  <span>{link.label}</span>
-                </button>
-              ))}
-
-              {!user ? (
-                <div className="space-y-2 mt-4 pt-4 border-t border-slate-100">
-                  <Link href="/login" className="block">
-                    <button className="w-full px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-purple-500/5 hover:text-blue-600 transition-all duration-200">
-                      Entrar
-                    </button>
-                  </Link>
-                  <Link href="/registro" className="block">
-                    <button className="w-full px-4 py-2 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200">
-                      Criar Conta
-                    </button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-2 mt-4 pt-4 border-t border-slate-100">
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="md:hidden bg-white border-t border-gray-100"
+            >
+              <div className="px-4 py-4 space-y-2">
+                {navigationLinks.map((link) => (
                   <button
-                    onClick={handleSignOut}
-                    className="w-full px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-purple-500/5 hover:text-blue-600 flex items-center space-x-2"
+                    key={link.href}
+                    onClick={() => {
+                      handleNavigation(link.href, link.requiresAuth);
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex items-center w-full text-left text-slate-600 hover:text-blue-600 transition-colors px-2 py-3"
                   >
-                    <LogOut className="w-4 h-4" />
-                    <span>Sair</span>
+                    {link.icon && <link.icon className="w-5 h-5 mr-3" />}
+                    {link.label}
                   </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+                ))}
+
+                {user && isAuthenticated ? (
+                  <div className="border-t border-gray-200 pt-4 mt-4">
+                    <div className="px-2 py-2 mb-4">
+                      <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                      <p className="text-xs text-blue-600 capitalize">
+                        {user.userType === 'company' ? 'Empresa' : 'Freelancer'}
+                      </p>
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        handleNavigation('/perfil');
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center w-full text-left text-slate-600 hover:text-blue-600 transition-colors px-2 py-2"
+                    >
+                      <User className="w-4 h-4 mr-3" />
+                      Meu Perfil
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        handleNavigation('/configuracoes');
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center w-full text-left text-slate-600 hover:text-blue-600 transition-colors px-2 py-2"
+                    >
+                      <Settings className="w-4 h-4 mr-3" />
+                      Configurações
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        handleSignOut();
+                        setMobileMenuOpen(false);
+                      }}
+                      disabled={isLoading}
+                      className="flex items-center w-full text-left text-red-600 hover:text-red-700 transition-colors px-2 py-2 mt-2 disabled:opacity-50"
+                    >
+                      <LogOut className="w-4 h-4 mr-3" />
+                      {isLoading ? 'Saindo...' : 'Sair'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
+                    <Link href="/login">
+                      <button 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="w-full text-left text-slate-600 hover:text-blue-600 transition-colors px-2 py-3"
+                      >
+                        Entrar
+                      </button>
+                    </Link>
+                    <Link href="/registro">
+                      <button 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="w-full text-left px-2 py-3 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600"
+                      >
+                        Criar Conta
+                      </button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </nav>
   );

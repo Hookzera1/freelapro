@@ -2,25 +2,27 @@
 
 import { useState } from 'react';
 import { Bell } from 'lucide-react';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '@/app/hooks/useNotifications';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function NotificationIndicator() {
   const [isOpen, setIsOpen] = useState(false);
-  const { notifications, unreadCount, markAsRead, deleteNotification, isLoading } = useNotifications();
+  const { notifications, unreadCount, markAsRead, loading } = useNotifications();
 
   const handleNotificationClick = (notificationId: string) => {
     markAsRead(notificationId);
   };
 
+  // TODO: Implementar deleteNotification no hook
   const handleDelete = (e: React.MouseEvent, notificationId: string) => {
     e.stopPropagation();
-    deleteNotification(notificationId);
+    // deleteNotification(notificationId);
+    console.log('Delete notification:', notificationId);
   };
 
-  if (isLoading) return null;
+  if (loading) return null;
 
   return (
     <div className="relative">

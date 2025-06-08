@@ -20,9 +20,12 @@ export async function GET(request: Request) {
     const freelancer = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
-        skills: true,
-        hourlyRate: true,
-        yearsOfExperience: true,
+        id: true,
+        userType: true,
+        // Removidos campos que não existem no schema atual
+        // skills: true,
+        // hourlyRate: true,
+        // yearsOfExperience: true,
       },
     });
 
@@ -33,23 +36,14 @@ export async function GET(request: Request) {
       );
     }
 
-    // Converte as skills do JSON para array
-    const userSkills = freelancer.skills ? JSON.parse(freelancer.skills) : [];
-
-    // Busca vagas que correspondam às habilidades do freelancer
-    const jobs = await prisma.job.findMany({
+    // Por enquanto, busca todas as vagas abertas
+    // TODO: Implementar sistema de skills/matching quando o schema for expandido
+    const jobs = await prisma.project.findMany({
       where: {
         status: 'OPEN',
-        visibility: 'PUBLIC',
-        // Filtra por vagas que tenham pelo menos uma skill em comum
-        OR: userSkills.map((skill: string) => ({
-          skills: {
-            contains: skill,
-          },
-        })),
       },
       include: {
-        user: {
+        company: {
           select: {
             id: true,
             name: true,

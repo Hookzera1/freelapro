@@ -439,17 +439,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const getAuthToken = async () => {
+  const getAuthToken = async (): Promise<string | null> => {
     const currentUser = getAuth().currentUser;
     if (!currentUser) {
+      console.log('🔐 getAuthToken: Usuário não está logado');
       return null;
     }
 
     try {
-      const token = await getIdToken(currentUser);
+      // Tentar obter token atualizado sempre
+      console.log('🔐 getAuthToken: Obtendo token atualizado...');
+      const token = await getIdToken(currentUser, true); // Force refresh
+      
+      // Atualizar localStorage e cookies
+      localStorage.setItem('authToken', token);
+      document.cookie = `authToken=${token}; path=/; max-age=2592000; SameSite=Strict`;
+      
+      console.log('🔐 getAuthToken: Token atualizado com sucesso');
       return token;
     } catch (error) {
-      console.error('Erro ao obter token de autenticação:', error);
+      console.error('🔐 getAuthToken: Erro ao obter token:', error);
+      
+      // Limpar tokens inválidos
+      localStorage.removeItem('authToken');
+      document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      
       return null;
     }
   };

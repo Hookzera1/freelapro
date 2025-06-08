@@ -1,15 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [activeTab, setActiveTab] = useState('profile');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,23 +22,50 @@ export default function Settings() {
     pushNotifications: false,
   });
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Se ainda está carregando o estado de autenticação, aguardar
+        if (loading) return;
+
+        // Se não há usuário após carregar, redirecionar para login
+        if (!user) {
+          console.log('Usuário não autenticado, redirecionando para login...');
+          router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+          return;
+        }
+      } catch (error) {
+        console.error('Erro ao verificar autenticação:', error);
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+      }
+    };
+
+    checkAuth();
+  }, [user, loading, router, pathname]);
+
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsLoading(true);
     setError(null);
     setSuccess(null);
 
     if (formData.newPassword !== formData.confirmPassword) {
       setError('As senhas não coincidem');
-      setLoading(false);
+      setIsLoading(false);
       return;
     }
 
     try {
+      const token = localStorage.getItem('authToken');
+      if (!token || !user) {
+        throw new Error('Usuário não autenticado');
+      }
+
       const response = await fetch('/api/users/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           currentPassword: formData.currentPassword,
@@ -59,7 +87,7 @@ export default function Settings() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao alterar senha');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -68,10 +96,14 @@ export default function Settings() {
     setFormData({ ...formData, [name]: checked });
 
     try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
       await fetch('/api/users/notifications', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           [name]: checked,
@@ -82,9 +114,27 @@ export default function Settings() {
     }
   };
 
-  if (!user) {
-    router.push('/login');
-    return null;
+  // Mostrar loading se ainda está carregando ou não há usuário
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
+        <div className="container-custom">
+          <div className="max-w-3xl mx-auto">
+            <div className="animate-pulse">
+              <div className="h-8 bg-slate-200 rounded w-1/4 mb-8"></div>
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
+                <div className="space-y-4">
+                  <div className="h-4 bg-slate-200 rounded w-full"></div>
+                  <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -152,10 +202,10 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Membro desde
+                        Tipo de Conta
                       </label>
-                      <p className="text-slate-600">
-                        {new Date(user.createdAt).toLocaleDateString('pt-BR')}
+                      <p className="text-slate-600 capitalize">
+                        {user.userType === 'company' ? 'Empresa' : 'Freelancer'}
                       </p>
                     </div>
                   </div>
@@ -246,10 +296,10 @@ export default function Settings() {
 
                     <button
                       type="submit"
-                      disabled={loading}
+                      disabled={isLoading}
                       className="btn-primary w-full"
                     >
-                      {loading ? (
+                      {isLoading ? (
                         <div className="flex items-center justify-center">
                           <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin mr-2"></div>
                           Alterando...

@@ -22,8 +22,8 @@ export async function GET(request: Request) {
     // Buscar propostas para os projetos da empresa
     const proposals = await prisma.proposal.findMany({
       where: {
-        job: {
-          userId: user.id
+        project: {
+          companyId: user.id
         }
       },
       include: {
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
             image: true
           }
         },
-        job: {
+        project: {
           select: {
             id: true,
             title: true

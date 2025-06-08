@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
@@ -12,6 +12,7 @@ export default function CriarVaga() {
   const { fetchAuth } = useFetchAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -22,9 +23,18 @@ export default function CriarVaga() {
     type: 'fixed-price',
     duration: 'not-specified',
     experience: 'any',
-    location: '',
+    jobLocation: '',
     visibility: 'PUBLIC',
   });
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Não renderizar no server-side
+  if (!isMounted) {
+    return null;
+  }
 
   // Redirecionar se não estiver autenticado ou não for empresa
   if (!isAuthenticated || !user || user.userType !== 'company') {
@@ -231,8 +241,8 @@ export default function CriarVaga() {
               </label>
               <input
                 type="text"
-                name="location"
-                value={formData.location}
+                name="jobLocation"
+                value={formData.jobLocation}
                 onChange={handleChange}
                 className="input-field"
                 placeholder="Ex: Remoto, São Paulo, etc."

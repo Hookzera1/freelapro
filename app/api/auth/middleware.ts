@@ -31,21 +31,44 @@ export async function authMiddleware(request: Request) {
       });
 
       // Buscar dados do usuário no banco
-      const user = await prisma.user.findUnique({
+      let user = await prisma.user.findUnique({
         where: { id: decodedToken.uid },
         select: {
           id: true,
           email: true,
+          name: true,
           userType: true
         }
       });
 
       if (!user) {
-        console.error('Usuário não encontrado no banco:', decodedToken.uid);
-        return NextResponse.json(
-          { error: 'Usuário não encontrado' },
-          { status: 404 }
-        );
+        console.log('Usuário não encontrado no SQLite, criando automaticamente...');
+        
+        // Criar usuário automaticamente no banco SQLite
+        try {
+          user = await prisma.user.create({
+            data: {
+              id: decodedToken.uid,
+              email: decodedToken.email || '',
+              name: decodedToken.name || decodedToken.email?.split('@')[0] || 'Usuário',
+              userType: decodedToken.userType || 'freelancer', // Default para freelancer
+            },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              userType: true
+            }
+          });
+          
+          console.log('Usuário criado com sucesso no SQLite:', user);
+        } catch (createError) {
+          console.error('Erro ao criar usuário no SQLite:', createError);
+          return NextResponse.json(
+            { error: 'Erro ao criar usuário no banco' },
+            { status: 500 }
+          );
+        }
       }
 
       // Retornar os dados do usuário

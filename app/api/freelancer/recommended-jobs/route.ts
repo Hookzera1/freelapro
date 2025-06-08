@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/firebase-admin';
 import { prisma } from '@/lib/prisma';
-import { authMiddleware } from '../../auth/middleware';
 import { Project, User } from '@prisma/client';
 
 interface ProjectWithRelations extends Project {
@@ -10,66 +10,61 @@ interface ProjectWithRelations extends Project {
   };
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticação
-    const authResult = await authMiddleware(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
+    console.log('API /freelancer/recommended-jobs: Iniciando busca de jobs recomendados');
+    
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
     }
 
-    const { user } = authResult;
-
-    if (user.userType !== 'freelancer') {
-      return NextResponse.json(
-        { error: 'Apenas freelancers podem acessar estas vagas' },
-        { status: 403 }
-      );
-    }
-
-    // Buscar projetos abertos
-    const projects = await prisma.project.findMany({
-      where: {
-        status: 'OPEN',
-        // Não mostrar projetos próprios
-        companyId: { not: user.id }
-      },
-      include: {
-        company: {
-          select: {
-            id: true,
-            name: true,
-            companyName: true,
-            image: true
+    const token = authHeader.split('Bearer ')[1];
+    
+    try {
+      const decodedToken = await auth.verifyIdToken(token);
+      console.log('API: Token verificado para recommended jobs:', decodedToken.uid);
+      
+      // Buscar projetos recomendados usando Prisma
+      const recommendedProjects = await prisma.project.findMany({
+        where: {
+          status: 'OPEN',
+          companyId: {
+            not: decodedToken.uid // Não mostrar projetos próprios
           }
         },
-        _count: {
-          select: {
-            proposals: true
+        include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+              userType: true
+            }
+          },
+          _count: {
+            select: {
+              proposals: true
+            }
           }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 10
-    });
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 10 // Limitar a 10 projetos recomendados
+      });
 
-    // Formatar os dados para o frontend
-    const formattedProjects = projects.map((project) => ({
-      ...project,
-      technologies: project.technologies ? project.technologies.split(',').map((s: string) => s.trim()) : [],
-      company: {
-        name: project.company.companyName || project.company.name,
-        image: project.company.image
-      }
-    }));
+      console.log('API: Projetos recomendados encontrados:', recommendedProjects.length);
+      
+      return NextResponse.json(recommendedProjects);
+    } catch (error) {
+      console.error('API: Erro ao verificar token:', error);
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+    }
 
-    return NextResponse.json(formattedProjects);
   } catch (error) {
     console.error('Erro ao buscar projetos recomendados:', error);
     return NextResponse.json(
-      { error: 'Erro ao processar a requisição' },
+      { error: 'Erro interno do servidor' },
       { status: 500 }
     );
   }

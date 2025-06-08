@@ -59,11 +59,11 @@ export default function Vagas() {
     fetchJobs();
   }, []);
 
-  const filteredJobs = jobs.filter(job => {
+  const filteredJobs = Array.isArray(jobs) ? jobs.filter(job => {
     if (filters.type && job.type !== filters.type) return false;
     if (filters.level && job.level !== filters.level) return false;
     return job.status === 'OPEN'; // Só mostrar projetos abertos
-  });
+  }) : [];
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;

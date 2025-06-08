@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useFetchAuth } from '@/hooks/useFetchAuth';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ImageUpload } from '@/components/ui/ImageUpload';
@@ -48,10 +49,11 @@ interface ProfileData {
 }
 
 export default function Profile() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
+  const { fetchAuth } = useFetchAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'reviews'>('profile');
   const [profileData, setProfileData] = useState<ProfileData>({
     name: '',
@@ -61,60 +63,71 @@ export default function Profile() {
   });
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    // Carregar dados do perfil
-    const loadProfile = async () => {
+    const checkAuthAndLoadProfile = async () => {
       try {
-        const token = localStorage.getItem('authToken');
-        const response = await fetch(`/api/users/${user.uid}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setProfileData({
-            name: data.name || '',
-            bio: data.bio || '',
-            skills: data.skills ? JSON.parse(data.skills) : [],
-            image: data.image,
-            // Campos para freelancers
-            hourlyRate: data.hourlyRate,
-            availability: data.availability,
-            portfolio: data.portfolio,
-            yearsOfExperience: data.yearsOfExperience,
-            languages: data.languages,
-            // Campos para empresas
-            companyName: data.companyName,
-            companySize: data.companySize,
-            industry: data.industry,
-            companyWebsite: data.companyWebsite,
-            companyLocation: data.companyLocation,
-          });
+        // Se ainda está carregando o estado de autenticação, aguardar
+        if (loading) return;
+
+        // Se não há usuário após carregar, redirecionar para login
+        if (!user) {
+          console.log('Usuário não autenticado, redirecionando para login...');
+          router.replace('/login');
+          return;
         }
+
+        // Carregar dados do perfil
+        await loadProfile();
       } catch (error) {
-        console.error('Erro ao carregar perfil:', error);
+        console.error('Erro ao verificar autenticação ou carregar perfil:', error);
+        router.replace('/login');
       }
     };
 
-    loadProfile();
-  }, [user, router]);
+    checkAuthAndLoadProfile();
+  }, [user, loading, router]);
+
+  const loadProfile = async () => {
+    try {
+      if (!user) return;
+      
+      const response = await fetchAuth(`/api/users/${user.uid}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProfileData({
+          name: data.name || '',
+          bio: data.bio || '',
+          skills: data.skills ? (Array.isArray(data.skills) ? data.skills : JSON.parse(data.skills)) : [],
+          image: data.image,
+          // Campos para freelancers
+          hourlyRate: data.hourlyRate,
+          availability: data.availability,
+          portfolio: data.portfolio,
+          yearsOfExperience: data.yearsOfExperience,
+          languages: data.languages,
+          // Campos para empresas
+          companyName: data.companyName,
+          companySize: data.companySize,
+          industry: data.industry,
+          companyWebsite: data.companyWebsite,
+          companyLocation: data.companyLocation,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsLoading(true);
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/users/${user?.uid}`, {
+      if (!user) return;
+      
+      const response = await fetchAuth(`/api/users/${user.uid}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           ...profileData,
@@ -128,7 +141,7 @@ export default function Profile() {
     } catch (error) {
       console.error('Erro ao atualizar perfil:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -156,14 +169,10 @@ export default function Profile() {
       setProfileData(prev => ({ ...prev, image: imageUrl }));
       
       // Atualizar no servidor
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-
-      const response = await fetch(`/api/users/${user.uid}`, {
+      const response = await fetchAuth(`/api/users/${user.uid}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ image: imageUrl })
       });
@@ -417,11 +426,11 @@ export default function Profile() {
                       </button>
                       <button
                         type="submit"
-                        disabled={loading}
+                        disabled={isLoading}
                         className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg transition-colors disabled:opacity-50"
                       >
                         <Save className="w-4 h-4" />
-                        {loading ? 'Salvando...' : 'Salvar Alterações'}
+                        {isLoading ? 'Salvando...' : 'Salvar Alterações'}
                       </button>
                     </div>
                   )}

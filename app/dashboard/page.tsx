@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { Briefcase, Users, PlusCircle, ChevronRight, Search, Clock, CheckCircle } from 'lucide-react';
 import { useFetchAuth } from '@/hooks/useFetchAuth';
 import { DashboardStats, FreelancerProject, FreelancerProposal } from '@/types/dashboard';
-import { RouteGuard } from '@/app/components/RouteGuard';
+import RouteGuard from '@/app/components/RouteGuard';
 
 export default function Dashboard() {
   const router = useRouter();

@@ -27,6 +27,7 @@ interface FormattedProposal {
     title: string;
     company: {
       name: string;
+      companyName: string | null;
     };
   };
 }
@@ -65,14 +66,17 @@ export async function GET(request: Request) {
       include: {
         project: {
           select: {
+            id: true,
             title: true,
             budget: true,
             deadline: true,
             company: {
               select: {
+                id: true,
                 name: true,
                 companyName: true,
-                image: true
+                image: true,
+                email: true
               }
             }
           }

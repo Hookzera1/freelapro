@@ -10,12 +10,12 @@ export async function GET(request: Request) {
       return authResult;
     }
 
-    const { uid } = authResult;
+    const { user } = authResult;
 
     // Buscar propostas do usuário
     const proposals = await prisma.proposal.findMany({
       where: {
-        userId: uid
+        userId: user.id
       },
       include: {
         project: {

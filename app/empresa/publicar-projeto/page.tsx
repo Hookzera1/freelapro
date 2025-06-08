@@ -6,7 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Briefcase, Building2, Users, Calendar, DollarSign, Code, FileText, Target, AlertCircle } from 'lucide-react';
-import { RouteGuard } from '@/app/components/RouteGuard';
+import RouteGuard from '@/app/components/RouteGuard';
 
 interface FormData {
   title: string;
@@ -214,14 +214,7 @@ export default function PublicarProjetoPage() {
   };
 
   return (
-    <RouteGuard
-      allowedUserTypes={['company']}
-      requireAuth={true}
-      requireVerified={true}
-      redirectTo="/login"
-      customDeniedMessage="Esta página é exclusiva para empresas"
-      customDeniedSuggestion="Se você é uma empresa, faça login com sua conta empresarial para publicar projetos."
-    >
+    <RouteGuard allowedUserTypes={['company']}>
       <div className="max-w-4xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-slate-800 mb-6 flex items-center">
           <Briefcase className="w-8 h-8 mr-3 text-blue-500" />
