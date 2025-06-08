@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,121 +18,73 @@ export async function GET(request: NextRequest) {
 
     console.log('API: Parâmetros de busca:', { search, category, minBudget, maxBudget, type, status, page, limit });
 
-    // Por enquanto, retornar dados mock para evitar erros
-    // TODO: Implementar com Firestore futuramente
-    const mockJobs = [
-      {
-        id: '1',
-        title: 'Desenvolvimento de E-commerce',
-        description: 'Preciso desenvolver uma loja virtual completa com sistema de pagamento integrado.',
-        budget: 5000,
-        type: 'fixed',
-        category: 'desenvolvimento-web',
-        status: 'open',
-        skills: ['React', 'Node.js', 'E-commerce', 'Stripe'],
-        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        company: {
-          id: 'comp1',
-          name: 'Tech Solutions Ltda',
-          rating: 4.5,
-          reviewsCount: 12
-        },
-        proposalsCount: 8,
-        location: 'São Paulo, SP',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '2',
-        title: 'Design de Logo e Identidade Visual',
-        description: 'Criação de logo e identidade visual completa para startup de tecnologia.',
-        budget: 1500,
-        type: 'fixed',
-        category: 'design',
-        status: 'open',
-        skills: ['Logo Design', 'Branding', 'Adobe Illustrator', 'Photoshop'],
-        deadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-        company: {
-          id: 'comp2',
-          name: 'StartUp Inovadora',
-          rating: 4.8,
-          reviewsCount: 5
-        },
-        proposalsCount: 15,
-        location: 'Rio de Janeiro, RJ',
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: '3',
-        title: 'Aplicativo Mobile para Delivery',
-        description: 'Desenvolvimento de app mobile para delivery de comida com GPS e notificações.',
-        budget: 8000,
-        type: 'fixed',
-        category: 'desenvolvimento-mobile',
-        status: 'open',
-        skills: ['React Native', 'Firebase', 'Maps API', 'Push Notifications'],
-        deadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
-        company: {
-          id: 'comp3',
-          name: 'Food Express',
-          rating: 4.2,
-          reviewsCount: 8
-        },
-        proposalsCount: 12,
-        location: 'Belo Horizonte, MG',
-        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    ];
-
-    // Simular filtros simples
-    let filteredJobs = mockJobs;
+    // Construir filtros para Prisma
+    const where: any = {};
     
-    if (search) {
-      filteredJobs = filteredJobs.filter(job => 
-        job.title.toLowerCase().includes(search.toLowerCase()) ||
-        job.description.toLowerCase().includes(search.toLowerCase()) ||
-        job.skills.some(skill => skill.toLowerCase().includes(search.toLowerCase()))
-      );
-    }
-
-    if (category && category !== 'all') {
-      filteredJobs = filteredJobs.filter(job => job.category === category);
+    if (status && status !== 'all') {
+      where.status = status.toUpperCase();
+    } else {
+      where.status = 'OPEN'; // Apenas projetos abertos por padrão
     }
 
     if (type && type !== 'all') {
-      filteredJobs = filteredJobs.filter(job => job.type === type);
+      where.type = type;
     }
 
-    if (status && status !== 'all') {
-      filteredJobs = filteredJobs.filter(job => job.status === status);
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { technologies: { contains: search, mode: 'insensitive' } }
+      ];
     }
 
     if (minBudget) {
-      const min = parseInt(minBudget);
-      filteredJobs = filteredJobs.filter(job => job.budget >= min);
+      where.budget = { ...where.budget, gte: parseFloat(minBudget) };
     }
 
     if (maxBudget) {
-      const max = parseInt(maxBudget);
-      filteredJobs = filteredJobs.filter(job => job.budget <= max);
+      where.budget = { ...where.budget, lte: parseFloat(maxBudget) };
     }
 
-    // Simular paginação
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedJobs = filteredJobs.slice(startIndex, endIndex);
+    const skip = (page - 1) * limit;
 
-    console.log('API: Vagas obtidas com sucesso (mock):', paginatedJobs.length, 'resultados');
+    // Buscar projetos no Prisma
+    const [projects, total] = await Promise.all([
+      prisma.project.findMany({
+        where,
+        include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+              userType: true
+            }
+          },
+          _count: {
+            select: {
+              proposals: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        skip,
+        take: limit
+      }),
+      prisma.project.count({ where })
+    ]);
+
+    console.log('API: Vagas encontradas:', projects.length);
     
     return NextResponse.json({
-      jobs: paginatedJobs,
+      jobs: projects,
       pagination: {
         page,
         limit,
-        total: filteredJobs.length,
-        pages: Math.ceil(filteredJobs.length / limit)
+        total,
+        pages: Math.ceil(total / limit)
       }
     });
 
@@ -201,36 +154,41 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Por enquanto, apenas simular a criação
-      // TODO: Implementar com Firestore futuramente
-      const newJob = {
-        id: `job_${Date.now()}`,
-        title,
-        description,
-        budget: parseFloat(budget.toString()),
-        deadline: deadlineDate.toISOString(),
-        scope: scope || '',
-        technologies: technologies || '',
-        type: type || 'fixed',
-        level: level || 'intermediate',
-        status: 'open',
-        companyId: decodedToken.uid,
-        company: {
-          id: decodedToken.uid,
-          name: 'Empresa Usuário',
-          rating: 5.0,
-          reviewsCount: 0
+      // Criar projeto no Prisma
+      const newProject = await prisma.project.create({
+        data: {
+          title,
+          description,
+          budget: parseFloat(budget.toString()),
+          deadline: deadlineDate,
+          scope: scope || '',
+          technologies: technologies || '',
+          type: type || 'fixed',
+          level: level || 'intermediate',
+          status: 'OPEN',
+          companyId: decodedToken.uid
         },
-        proposalsCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+        include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+              userType: true
+            }
+          },
+          _count: {
+            select: {
+              proposals: true
+            }
+          }
+        }
+      });
 
-      console.log('API: Vaga criada com sucesso (mock):', newJob.id);
+      console.log('API: Vaga criada com sucesso:', newProject.id);
       
       return NextResponse.json({
         success: true,
-        job: newJob,
+        job: newProject,
         message: 'Vaga criada com sucesso'
       });
     } catch (error) {

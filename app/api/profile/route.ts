@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, db } from '@/lib/firebase-admin';
+import { auth } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,22 +17,19 @@ export async function GET(request: NextRequest) {
       const decodedToken = await auth.verifyIdToken(token);
       console.log('API: Token verificado para perfil:', decodedToken.uid);
       
-      // Buscar dados do usuário no Firestore
-      const userRef = db.collection('users').doc(decodedToken.uid);
-      const userDoc = await userRef.get();
+      // Buscar dados do usuário no Prisma
+      const user = await prisma.user.findUnique({
+        where: { id: decodedToken.uid }
+      });
 
-      if (!userDoc.exists) {
-        console.log('API: Usuário não encontrado no Firestore');
+      if (!user) {
+        console.log('API: Usuário não encontrado no Prisma');
         return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
       }
 
-      const userData = userDoc.data();
       console.log('API: Dados do perfil obtidos com sucesso');
       
-      return NextResponse.json({
-        uid: decodedToken.uid,
-        ...userData
-      });
+      return NextResponse.json(user);
     } catch (error) {
       console.error('API: Erro ao verificar token:', error);
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
@@ -63,25 +61,26 @@ export async function PUT(request: NextRequest) {
       
       console.log('API: Dados recebidos para atualização:', data);
       
-      // Atualizar dados do usuário no Firestore
-      const userRef = db.collection('users').doc(decodedToken.uid);
-      const userDoc = await userRef.get();
+      const user = await prisma.user.findUnique({
+        where: { id: decodedToken.uid },
+      });
 
-      if (!userDoc.exists) {
+      if (!user) {
         return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
       }
 
-      const currentData = userDoc.data();
-      const updatedData = {
-        ...currentData,
-        ...data,
-        updatedAt: new Date().toISOString()
-      };
+      // Atualizar apenas campos que existem no schema
+      const updatedUser = await prisma.user.update({
+        where: { id: decodedToken.uid },
+        data: {
+          name: data.name || user.name,
+          userType: data.userType || user.userType,
+          updatedAt: new Date()
+        }
+      });
 
-      await userRef.set(updatedData);
-      
       console.log('API: Perfil atualizado com sucesso');
-      return NextResponse.json({ success: true, data: updatedData });
+      return NextResponse.json(updatedUser);
     } catch (error) {
       console.error('API: Erro ao verificar token:', error);
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });

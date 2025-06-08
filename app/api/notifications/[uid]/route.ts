@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
@@ -27,12 +28,19 @@ export async function GET(
         return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
       }
 
-      // Por enquanto, retornar array vazio para evitar erros
-      // TODO: Implementar notificações com Firestore futuramente
-      console.log('API: Retornando notificações vazias (temporário)');
-      const mockNotifications: any[] = [];
+      // Buscar notificações do usuário no Prisma
+      const notifications = await prisma.notification.findMany({
+        where: {
+          userId: uid
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 50 // Limitar a 50 notificações mais recentes
+      });
 
-      return NextResponse.json(mockNotifications);
+      console.log('API: Notificações encontradas:', notifications.length);
+      return NextResponse.json(notifications);
     } catch (error) {
       console.error('API: Erro ao verificar token:', error);
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
@@ -71,13 +79,27 @@ export async function PATCH(
         return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
       }
 
-      // Por enquanto, apenas retornar sucesso sem fazer nada
-      // TODO: Implementar com Firestore futuramente
-      console.log('API: Simulando atualização de notificações:', { action, notificationId });
-      
       if (action === 'mark_read') {
+        await prisma.notification.update({
+          where: {
+            id: notificationId,
+            userId: uid
+          },
+          data: {
+            read: true
+          }
+        });
         return NextResponse.json({ message: 'Notificação marcada como lida' });
       } else if (action === 'mark_all_read') {
+        await prisma.notification.updateMany({
+          where: {
+            userId: uid,
+            read: false
+          },
+          data: {
+            read: true
+          }
+        });
         return NextResponse.json({ message: 'Todas as notificações foram marcadas como lidas' });
       } else {
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
@@ -124,9 +146,12 @@ export async function DELETE(
         return NextResponse.json({ error: 'ID da notificação é obrigatório' }, { status: 400 });
       }
 
-      // Por enquanto, apenas retornar sucesso
-      // TODO: Implementar com Firestore futuramente
-      console.log('API: Simulando exclusão de notificação:', notificationId);
+      await prisma.notification.delete({
+        where: {
+          id: notificationId,
+          userId: uid
+        }
+      });
       
       return NextResponse.json({ message: 'Notificação deletada com sucesso' });
     } catch (error) {
