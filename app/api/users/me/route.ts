@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, db } from '@/lib/firebase-admin';
+import { auth } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,48 +17,64 @@ export async function GET(request: NextRequest) {
       const decodedToken = await auth.verifyIdToken(token);
       console.log('API: Token verificado para user/me:', decodedToken.uid);
       
-      // Buscar dados do usuário no Firestore
-      const userRef = db.collection('users').doc(decodedToken.uid);
-      const userDoc = await userRef.get();
+      // Buscar dados do usuário no PostgreSQL
+      const user = await prisma.user.findUnique({
+        where: { id: decodedToken.uid },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          userType: true,
+          companyName: true,
+          image: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
 
-      if (!userDoc.exists) {
-        console.log('API: Usuário não encontrado no Firestore, criando...');
+      if (!user) {
+        console.log('API: Usuário não encontrado no PostgreSQL, criando...');
         
-        // Criar usuário no Firestore se não existir
+        // Criar usuário no PostgreSQL se não existir
         const firebaseUser = await auth.getUser(decodedToken.uid);
-        const newUserData = {
-          id: decodedToken.uid,
-          email: firebaseUser.email || '',
-          name: firebaseUser.displayName || 'Usuário',
-          userType: 'freelancer',
-          profilePicture: firebaseUser.photoURL || null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
+        const newUser = await prisma.user.create({
+          data: {
+            id: decodedToken.uid,
+            email: firebaseUser.email || '',
+            name: firebaseUser.displayName || 'Usuário',
+            userType: 'freelancer',
+            image: firebaseUser.photoURL || null,
+          }
+        });
 
-        await userRef.set(newUserData);
-        console.log('API: Novo usuário criado no Firestore');
+        console.log('API: Novo usuário criado no PostgreSQL');
         
-        return NextResponse.json(newUserData);
+        return NextResponse.json({
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.name,
+          userType: newUser.userType,
+          companyName: newUser.companyName,
+          image: newUser.image
+        });
       }
 
-      const userData = userDoc.data();
       console.log('API: Dados do usuário obtidos com sucesso');
       
       return NextResponse.json({
-        id: decodedToken.uid,
-        ...userData
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        userType: user.userType,
+        companyName: user.companyName,
+        image: user.image
       });
     } catch (error) {
       console.error('API: Erro ao verificar token:', error);
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
     }
-
   } catch (error) {
-    console.error('Erro ao buscar usuário atual:', error);
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
+    console.error('API: Erro na rota /users/me:', error);
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 } 

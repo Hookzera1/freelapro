@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, auth, checkFirebaseConnection } from '@/lib/firebase-admin';
-import { DocumentData } from 'firebase-admin/firestore';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { auth } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
@@ -12,20 +9,7 @@ export async function GET(
   try {
     const { uid } = await params;
     
-    console.log('API /users/[uid]: Iniciando requisição GET:', {
-      uid,
-      headers: Object.fromEntries(request.headers)
-    });
-
-    // Verificar conexão com Firebase
-    const isConnected = await checkFirebaseConnection();
-    if (!isConnected) {
-      console.error('API /users/[uid]: Erro de conexão com Firebase');
-      return NextResponse.json(
-        { error: 'Erro de conexão com o servidor' },
-        { status: 503 }
-      );
-    }
+    console.log('API /users/[uid]: Iniciando requisição GET:', uid);
 
     // Verificar token de autenticação
     const authHeader = request.headers.get('authorization');
@@ -65,12 +49,23 @@ export async function GET(
       );
     }
 
-    // Buscar dados do usuário no Firestore
-    console.log('API /users/[uid]: Buscando dados no Firestore:', uid);
-    const userRef = db.collection('users').doc(uid);
-    const userDoc = await userRef.get();
+    // Buscar dados do usuário no PostgreSQL
+    console.log('API /users/[uid]: Buscando dados no PostgreSQL:', uid);
+    const user = await prisma.user.findUnique({
+      where: { id: uid },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        userType: true,
+        companyName: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
 
-    if (!userDoc.exists) {
+    if (!user) {
       console.log('API /users/[uid]: Usuário não encontrado:', uid);
       return NextResponse.json(
         { error: 'Usuário não encontrado' },
@@ -78,34 +73,30 @@ export async function GET(
       );
     }
 
-    const userData: DocumentData | undefined = userDoc.data();
-    
     // Validar tipo de usuário
-    const userType = userData && ['company', 'freelancer'].includes(userData.userType) 
-      ? userData.userType 
+    const userType = user.userType && ['company', 'freelancer'].includes(user.userType) 
+      ? user.userType 
       : 'freelancer';
 
     const responseData = {
-      ...userData,
+      uid: user.id,
+      id: user.id,
+      email: user.email,
+      name: user.name,
       userType,
-      uid
+      companyName: user.companyName,
+      image: user.image,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
     };
 
     console.log('API /users/[uid]: Dados retornados com sucesso');
     return NextResponse.json(responseData);
   } catch (error) {
     console.error('API /users/[uid]: Erro ao buscar usuário:', error);
-    // Tentar obter mais informações sobre o erro
-    const errorDetails = error instanceof Error ? {
-      message: error.message,
-      name: error.name,
-      stack: error.stack
-    } : error;
-    
-    console.error('API /users/[uid]: Detalhes do erro:', errorDetails);
     
     return NextResponse.json(
-      { error: 'Erro ao buscar usuário', details: errorDetails },
+      { error: 'Erro ao buscar usuário' },
       { status: 500 }
     );
   }
@@ -148,58 +139,33 @@ export async function PUT(
     }
 
     const data = await request.json();
-    const { name, companyName, bio, skills, location, website, github, linkedin, userType, image } = data;
+    const { name, companyName, userType, image } = data;
 
-    // Atualizar no Prisma
-    await prisma.user.update({
+    // Validar tipo de usuário
+    const validUserType = userType && ['company', 'freelancer'].includes(userType) 
+      ? userType 
+      : undefined;
+
+    // Atualizar no PostgreSQL
+    const updatedUser = await prisma.user.update({
       where: { id: uid },
       data: {
         ...(name && { name }),
         ...(companyName && { companyName }),
-        ...(bio && { bio }),
-        ...(skills && { skills }),
-        ...(location && { location }),
-        ...(website && { website }),
-        ...(github && { github }),
-        ...(linkedin && { linkedin }),
-        ...(userType && { userType }),
+        ...(validUserType && { userType: validUserType }),
         ...(image && { image }),
         updatedAt: new Date()
       }
     });
 
-    // Também atualizar no Firestore se necessário
-    const userRef = db.collection('users').doc(uid);
-    const userDoc = await userRef.get();
-    const validUserType = userType === 'company' ? 'company' : 'freelancer';
-
-    if (userDoc.exists) {
-      const userData = userDoc.data();
-
-      await userRef.update({
-        ...(name && { name }),
-        ...(companyName && validUserType === 'company' && { companyName }),
-        ...(bio && { bio }),
-        ...(skills && { skills }),
-        ...(location && { location }),
-        ...(website && { website }),
-        ...(github && { github }),
-        ...(linkedin && { linkedin }),
-        ...(userType && { userType: validUserType }),
-        ...(image && { image }),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
     return NextResponse.json({ 
       success: true,
-      userType: validUserType
+      user: updatedUser
     });
   } catch (error) {
     console.error('API: Erro ao atualizar usuário:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar usuário';
     return NextResponse.json(
-      { error: errorMessage },
+      { error: 'Erro ao atualizar usuário' },
       { status: 500 }
     );
   }

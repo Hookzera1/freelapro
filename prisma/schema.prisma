@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,56 +7,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// SCHEMA TEMPORARIAMENTE SIMPLIFICADO PARA DEPLOY
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  companyName String?
-  image     String?
-  userType  String   @default("freelancer")
-  emailVerified DateTime? // Campo para NextAuth compatibility
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relacionamentos adicionados
-  companyProjects      Project[]     @relation("CompanyProjects")
-  freelancerProjects   Project[]     @relation("FreelancerProjects")
-  proposals            Proposal[]    @relation("UserProposals")
-  notifications        Notification[]
-  freelancerContracts  Contract[]    @relation("FreelancerContracts")
-  companyContracts     Contract[]    @relation("CompanyContracts")
-  milestoneLogs        MilestoneLog[]
-  messages             Message[]
-  reviewsGiven         Review[]      @relation("ReviewsGiven")
-  reviewsReceived      Review[]      @relation("ReviewsReceived")
-  portfolio            Portfolio[]
-  userSkills           UserSkill[]
+  id                  String         @id @default(cuid())
+  email               String         @unique
+  name                String?
+  companyName         String?
+  image               String?
+  userType            String         @default("freelancer")
+  emailVerified       DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  notifications       Notification[]
+  companyProjects     Project[]      @relation("CompanyProjects")
+  freelancerProjects  Project[]      @relation("FreelancerProjects")
+  proposals           Proposal[]     @relation("UserProposals")
+  companyContracts    Contract[]     @relation("CompanyContracts")
+  freelancerContracts Contract[]     @relation("FreelancerContracts")
+  messages            Message[]
+  milestoneLogs       MilestoneLog[]
+  portfolio           Portfolio[]
+  reviewsReceived     Review[]       @relation("ReviewsReceived")
+  reviewsGiven        Review[]       @relation("ReviewsGiven")
+  userSkills          UserSkill[]
 }
 
 model Project {
-  id          String     @id @default(cuid())
-  title       String
-  description String
-  scope       String?
-  budget      Float
-  deadline    DateTime
-  status      String     @default("OPEN") // "OPEN", "IN_PROGRESS", "COMPLETED"
-  type        String     @default("fixed") // "fixed", "hourly", "recurring"
-  level       String     @default("intermediate") // "beginner", "intermediate", "expert"
+  id           String     @id @default(cuid())
+  title        String
+  description  String
+  scope        String?
+  budget       Float
+  deadline     DateTime
+  status       String     @default("OPEN")
+  type         String     @default("fixed")
+  level        String     @default("intermediate")
   technologies String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  
-  // Relações
-  companyId   String
-  company     User       @relation("CompanyProjects", fields: [companyId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  companyId    String
   freelancerId String?
+  company      User       @relation("CompanyProjects", fields: [companyId], references: [id])
   freelancer   User?      @relation("FreelancerProjects", fields: [freelancerId], references: [id])
   proposals    Proposal[]
-  contract           Contract?
+  contract     Contract?
 
-  // Índices
   @@index([companyId])
   @@index([freelancerId])
   @@index([status])
@@ -68,100 +59,91 @@ model Project {
 }
 
 model Proposal {
-  id          String   @id @default(cuid())
-  message     String
-  budget      Float
-  status      String   @default("PENDING") // "PENDING", "ACCEPTED", "REJECTED"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relações
-  userId      String
-  user        User     @relation("UserProposals", fields: [userId], references: [id])
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id])
+  id        String   @id @default(cuid())
+  message   String
+  budget    Float
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  user      User     @relation("UserProposals", fields: [userId], references: [id])
 
-  // Índices
   @@index([userId])
   @@index([projectId])
   @@index([status])
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-  title     String
-  message   String
-  type      String   @default("info")
-  read      Boolean  @default(false)
-  userId    String
-  relatedId String?  // ID do objeto relacionado (contrato, projeto, etc.)
-  relatedType String? // Tipo do objeto relacionado (contract, project, etc.)
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  title       String
+  message     String
+  type        String   @default("info")
+  read        Boolean  @default(false)
+  userId      String
+  relatedId   String?
+  relatedType String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([relatedId])
 }
 
 model Contract {
-  id          String   @id @default(cuid())
-  projectId   String   @unique
+  id           String         @id @default(cuid())
+  projectId    String         @unique
   freelancerId String
-  companyId   String
-  status      ContractStatus @default(ACTIVE)
-  totalAmount Float
-  startDate   DateTime @default(now())
-  deadline    DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  companyId    String
+  status       ContractStatus @default(ACTIVE)
+  totalAmount  Float
+  startDate    DateTime       @default(now())
+  deadline     DateTime
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  company      User           @relation("CompanyContracts", fields: [companyId], references: [id])
+  freelancer   User           @relation("FreelancerContracts", fields: [freelancerId], references: [id])
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages     Message[]
+  milestones   Milestone[]
+  reviews      Review[]
 
-  // Relacionamentos
-  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  freelancer  User        @relation("FreelancerContracts", fields: [freelancerId], references: [id])
-  company     User        @relation("CompanyContracts", fields: [companyId], references: [id])
-  milestones  Milestone[]
-  messages    Message[]
-  reviews     Review[]    // Nova relação com reviews
-  
   @@map("contracts")
 }
 
 model Milestone {
-  id          String   @id @default(cuid())
-  contractId  String
-  title       String
-  description String?
-  amount      Float
-  dueDate     DateTime
-  status      MilestoneStatus @default(PENDING)
-  deliverables Json? // Array de strings com entregáveis
-  completedAt DateTime?
-  approvedAt  DateTime?
-  paidAt      DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String          @id @default(cuid())
+  contractId   String
+  title        String
+  description  String?
+  amount       Float
+  dueDate      DateTime
+  status       MilestoneStatus @default(PENDING)
+  deliverables Json?
+  completedAt  DateTime?
+  approvedAt   DateTime?
+  paidAt       DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  logs         MilestoneLog[]
+  contract     Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
 
-  // Relacionamentos
-  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  logs        MilestoneLog[]
-  
   @@map("milestones")
 }
 
 model MilestoneLog {
-  id            String @id @default(cuid())
-  milestoneId   String
-  userId        String
-  action        String // start, complete, approve, request_revision, pay
+  id             String    @id @default(cuid())
+  milestoneId    String
+  userId         String
+  action         String
   previousStatus String
-  newStatus     String
-  note          String?
-  createdAt     DateTime @default(now())
-
-  // Relacionamentos
-  milestone     Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
-  user          User      @relation(fields: [userId], references: [id])
+  newStatus      String
+  note           String?
+  createdAt      DateTime  @default(now())
+  milestone      Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id])
 
   @@map("milestone_logs")
 }
@@ -172,14 +154,85 @@ model Message {
   senderId    String
   content     String
   type        MessageType @default(TEXT)
-  attachments Json? // Array de arquivos
+  attachments Json?
   createdAt   DateTime    @default(now())
+  contract    Contract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  sender      User        @relation(fields: [senderId], references: [id])
 
-  // Relacionamentos
-  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  sender      User     @relation(fields: [senderId], references: [id])
-  
   @@map("messages")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  contractId String
+  reviewerId String
+  revieweeId String
+  rating     Int
+  title      String
+  comment    String?
+  skills     Json?
+  criteria   Json?
+  isPublic   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  reviewee   User     @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+  reviewer   User     @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+
+  @@unique([contractId, reviewerId])
+  @@map("reviews")
+}
+
+model Portfolio {
+  id           String    @id @default(cuid())
+  userId       String
+  title        String
+  description  String
+  technologies Json?
+  images       Json?
+  links        Json?
+  category     String
+  featured     Boolean   @default(false)
+  completedAt  DateTime?
+  clientName   String?
+  projectValue Float?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([featured])
+  @@map("portfolio")
+}
+
+model Skill {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  category    String
+  description String?
+  createdAt   DateTime    @default(now())
+  userSkills  UserSkill[]
+
+  @@index([category])
+  @@map("skills")
+}
+
+model UserSkill {
+  id           String   @id @default(cuid())
+  userId       String
+  skillId      String
+  level        Int
+  yearsExp     Int?
+  certified    Boolean  @default(false)
+  endorsements Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  skill        Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+  @@map("user_skills")
 }
 
 enum ContractStatus {
@@ -204,85 +257,3 @@ enum MessageType {
   PAYMENT_REQUEST
   DELIVERY
 }
-
-model Review {
-  id          String   @id @default(cuid())
-  contractId  String
-  reviewerId  String   // Quem está avaliando
-  revieweeId  String   // Quem está sendo avaliado
-  rating      Int      // 1-5 estrelas
-  title       String
-  comment     String?
-  skills      Json?    // Array de skills avaliadas com notas
-  criteria    Json?    // Critérios específicos (qualidade, prazo, comunicação, etc.)
-  isPublic    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relacionamentos
-  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  reviewer    User     @relation("ReviewsGiven", fields: [reviewerId], references: [id])
-  reviewee    User     @relation("ReviewsReceived", fields: [revieweeId], references: [id])
-
-  // Garantir que só pode haver uma review por contrato por pessoa
-  @@unique([contractId, reviewerId])
-  @@map("reviews")
-}
-
-model Portfolio {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  description String
-  technologies Json?   // Array de tecnologias usadas
-  images      Json?    // Array de URLs de imagens
-  links       Json?    // Array de links (demo, github, etc.)
-  category    String   // web, mobile, design, etc.
-  featured    Boolean  @default(false)
-  completedAt DateTime?
-  clientName  String?  // Nome do cliente (opcional)
-  projectValue Float?  // Valor do projeto (opcional)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relacionamentos
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([category])
-  @@index([featured])
-  @@map("portfolio")
-}
-
-model Skill {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  category    String   // programming, design, marketing, etc.
-  description String?
-  createdAt   DateTime @default(now())
-
-  // Relacionamentos
-  userSkills  UserSkill[]
-
-  @@index([category])
-  @@map("skills")
-}
-
-model UserSkill {
-  id          String   @id @default(cuid())
-  userId      String
-  skillId     String
-  level       Int      // 1-5 (beginner to expert)
-  yearsExp    Int?     // Anos de experiência
-  certified   Boolean  @default(false)
-  endorsements Int     @default(0) // Número de endorsements
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relacionamentos
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skill       Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, skillId])
-  @@map("user_skills")
-} 
