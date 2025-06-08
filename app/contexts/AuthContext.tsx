@@ -99,9 +99,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (response.status === 404) {
-        console.log('AuthContext: Usuário não encontrado no Firestore, criando perfil...');
+        console.log('AuthContext: Usuário não encontrado no banco, criando perfil automaticamente...');
         
-        // Criar perfil do usuário
+        // Criar perfil do usuário automaticamente
         const createResponse = await fetch('/api/users', {
           method: 'POST',
           headers: {
@@ -110,23 +110,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
           body: JSON.stringify({
             uid: firebaseUser.uid,
-            name: firebaseUser.displayName || 'Usuário',
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
             email: firebaseUser.email,
-            userType: 'freelancer', // Tipo padrão, pode ser alterado depois
+            userType: 'freelancer', // Tipo padrão
             emailVerified: firebaseUser.emailVerified
           })
         });
 
         if (!createResponse.ok) {
+          const errorData = await createResponse.text();
+          console.error('AuthContext: Erro ao criar perfil:', errorData);
           throw new Error(`Erro ao criar perfil do usuário: ${createResponse.status}`);
         }
 
         const userData = await createResponse.json();
+        console.log('AuthContext: Perfil criado com sucesso:', userData);
+        
         return {
           id: userData.uid,
           uid: userData.uid,
           email: userData.email,
-          emailVerified: userData.emailVerified,
+          emailVerified: firebaseUser.emailVerified,
           userType: userData.userType,
           companyName: userData.companyName,
           name: userData.name
@@ -134,10 +138,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!response.ok) {
+        const errorData = await response.text();
+        console.error('AuthContext: Erro na resposta da API:', errorData);
         throw new Error(`Erro ao buscar dados do usuário: ${response.status}`);
       }
 
       const userData = await response.json();
+      console.log('AuthContext: Dados do usuário obtidos:', userData);
 
       // Garantir que o userType seja válido
       const validUserType = userData && ['company', 'freelancer'].includes(userData.userType) 
@@ -151,13 +158,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailVerified: firebaseUser.emailVerified,
         userType: validUserType,
         companyName: userData.companyName,
-        name: userData.name
+        name: userData.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário'
       };
 
       return authUser;
     } catch (error) {
-      console.error('AuthContext: Erro ao buscar dados do usuário:', error);
-      throw error;
+      console.error('AuthContext: Erro ao buscar/criar dados do usuário:', error);
+      throw new Error('Erro ao obter perfil do usuário. Tente novamente.');
     }
   };
 
