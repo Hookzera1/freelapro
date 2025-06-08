@@ -1,95 +1,96 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getServerAuth } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { auth, db } from '@/lib/firebase-admin';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerAuth(request);
-    if (!session) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    console.log('API /profile GET: Iniciando busca de perfil');
+    
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: {
-        freelancerProfile: true,
-        companyProfile: true,
-      },
-    });
+    const token = authHeader.split('Bearer ')[1];
+    
+    try {
+      const decodedToken = await auth.verifyIdToken(token);
+      console.log('API: Token verificado para perfil:', decodedToken.uid);
+      
+      // Buscar dados do usuário no Firestore
+      const userRef = db.collection('users').doc(decodedToken.uid);
+      const userDoc = await userRef.get();
 
-    if (!user) {
-      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
+      if (!userDoc.exists) {
+        console.log('API: Usuário não encontrado no Firestore');
+        return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
+      }
+
+      const userData = userDoc.data();
+      console.log('API: Dados do perfil obtidos com sucesso');
+      
+      return NextResponse.json({
+        uid: decodedToken.uid,
+        ...userData
+      });
+    } catch (error) {
+      console.error('API: Erro ao verificar token:', error);
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
     }
 
-    return NextResponse.json(user);
   } catch (error) {
     console.error('Erro ao buscar perfil:', error);
     return NextResponse.json(
-      { error: 'Erro ao processar a requisição' },
+      { error: 'Erro interno do servidor' },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerAuth(request);
-    if (!session) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    console.log('API /profile PUT: Atualizando perfil');
+    
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
     }
 
-    const data = await request.json();
-    const { userType, ...profileData } = data;
+    const token = authHeader.split('Bearer ')[1];
+    
+    try {
+      const decodedToken = await auth.verifyIdToken(token);
+      const data = await request.json();
+      
+      console.log('API: Dados recebidos para atualização:', data);
+      
+      // Atualizar dados do usuário no Firestore
+      const userRef = db.collection('users').doc(decodedToken.uid);
+      const userDoc = await userRef.get();
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
+      if (!userDoc.exists) {
+        return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
+      }
 
-    if (!user) {
-      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
+      const currentData = userDoc.data();
+      const updatedData = {
+        ...currentData,
+        ...data,
+        updatedAt: new Date().toISOString()
+      };
+
+      await userRef.set(updatedData);
+      
+      console.log('API: Perfil atualizado com sucesso');
+      return NextResponse.json({ success: true, data: updatedData });
+    } catch (error) {
+      console.error('API: Erro ao verificar token:', error);
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
     }
 
-    let updatedUser;
-
-    if (user.userType === 'freelancer') {
-      updatedUser = await prisma.user.update({
-        where: { id: session.user.id },
-        data: {
-          name: profileData.name,
-          freelancerProfile: {
-            upsert: {
-              create: profileData,
-              update: profileData,
-            },
-          },
-        },
-        include: {
-          freelancerProfile: true,
-        },
-      });
-    } else {
-      updatedUser = await prisma.user.update({
-        where: { id: session.user.id },
-        data: {
-          name: profileData.name,
-          companyProfile: {
-            upsert: {
-              create: profileData,
-              update: profileData,
-            },
-          },
-        },
-        include: {
-          companyProfile: true,
-        },
-      });
-    }
-
-    return NextResponse.json(updatedUser);
   } catch (error) {
     console.error('Erro ao atualizar perfil:', error);
     return NextResponse.json(
-      { error: 'Erro ao processar a requisição' },
+      { error: 'Erro interno do servidor' },
       { status: 500 }
     );
   }

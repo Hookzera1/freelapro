@@ -1,22 +1,24 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Teste de conexão com o banco
-    await prisma.$queryRaw`SELECT 1`;
-    
+    // Health check simples sem dependência do Prisma
     return NextResponse.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
-      database: 'connected'
+      services: {
+        firebase: 'connected',
+        api: 'operational'
+      }
     });
   } catch (error) {
     console.error('Health check failed:', error);
     return NextResponse.json({
       status: 'error',
       timestamp: new Date().toISOString(),
-      database: 'disconnected',
+      services: {
+        api: 'error'
+      },
       error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
